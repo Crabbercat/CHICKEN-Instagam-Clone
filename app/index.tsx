@@ -1,7 +1,45 @@
-import { Link } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Link, useRouter } from "expo-router";
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { getAuthInstance, isFirebaseConfigured } from '../lib/firebase';
 
 export default function Index() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // If Firebase is not configured, avoid initializing the SDK to prevent
+    // runtime errors like auth/invalid-api-key. Redirect to login so the
+    // app continues to function in dev without crashing.
+    if (!isFirebaseConfigured()) {
+      console.warn('Firebase not configured (EXPO_FIREBASE_API_KEY missing). Redirecting to /auth/login.');
+      InteractionManager.runAfterInteractions(() => router.replace('/auth/login'));
+      setChecking(false);
+      return;
+    }
+
+    const auth = getAuthInstance();
+    const unsub = onAuthStateChanged(auth, (user: User | null) => {
+      if (!user) {
+        // If not logged in, send to login after interactions finish so the
+        // navigation system has mounted.
+        InteractionManager.runAfterInteractions(() => router.replace('/auth/login'));
+      }
+      setChecking(false);
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (checking) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Instagram Clone</Text>
@@ -21,7 +59,7 @@ export default function Index() {
 
         <View style={{ height: 12 }} />
 
-        <Link href="/auth" asChild>
+        <Link href="/auth/login" asChild>
           <Pressable style={styles.buttonAlt}>
             <Text style={styles.buttonTextAlt}>Open Auth (Register / Login)</Text>
           </Pressable>

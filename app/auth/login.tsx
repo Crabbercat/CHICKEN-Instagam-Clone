@@ -1,26 +1,139 @@
-import { Link } from 'expo-router';
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { getAuthInstance } from '../../lib/firebase';
 
 export default function LoginPage(): React.ReactElement {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <Text style={styles.text}>This is a placeholder Login screen (TSX).</Text>
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
 
-      <Link href="/" asChild>
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Back to Home</Text>
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const auth = getAuthInstance();
+      // Here we assume identifier is an email. For username/phone you'd resolve to email/server-side.
+      await signInWithEmailAndPassword(auth, identifier.trim(), password);
+      // On success, go to root index
+      router.replace('/');
+    } catch (e: any) {
+      console.warn('login error', e);
+      setError(e?.message ?? 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isDisabled = !(identifier && password);
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.inner}>
+        <Text style={styles.logo}>Instagram</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Phone number, username or email"
+          value={identifier}
+          onChangeText={setIdentifier}
+          autoCapitalize="none"
+          placeholderTextColor="#999"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholderTextColor="#999"
+        />
+
+        <Pressable
+          style={[styles.button, (isDisabled || loading) && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={isDisabled || loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Log In'}</Text>
         </Pressable>
-      </Link>
-    </View>
+
+        {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
+
+        <Pressable style={styles.centerLink}>
+          <Text style={styles.forgot}>Forgot password?</Text>
+        </Pressable>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.line} />
+          <Text style={styles.or}>OR</Text>
+          <View style={styles.line} />
+        </View>
+
+        <Link href="/" asChild>
+          <Pressable>
+            <Text style={styles.facebook}>Log in with Facebook</Text>
+          </Pressable>
+        </Link>
+      </View>
+
+      <View style={styles.bottomRow}>
+        <Text style={styles.bottomText}>Don't have an account? </Text>
+        <Link href="/auth/register" asChild>
+          <Pressable>
+            <Text style={styles.signup}>Sign up.</Text>
+          </Pressable>
+        </Link>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
-  text: { fontSize: 14, color: '#444', marginBottom: 20 },
-  button: { backgroundColor: '#34C759', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  container: { flex: 1, justifyContent: 'center', backgroundColor: '#fff' },
+  inner: { padding: 24 },
+  logo: { fontSize: 40, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
+  input: {
+    height: 44,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+  },
+  button: {
+    height: 44,
+    backgroundColor: '#0095f6',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonDisabled: { backgroundColor: '#9bd3ff' },
+  buttonText: { color: 'white', fontWeight: '700' },
+  forgot: { color: '#0095f6', textAlign: 'center', marginTop: 12 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
+  line: { flex: 1, height: 1, backgroundColor: '#e6e6e6' },
+  or: { marginHorizontal: 12, color: '#999', fontWeight: '600' },
+  facebook: { color: '#385185', textAlign: 'center', fontWeight: '700' },
+  centerLink: { alignItems: 'center' },
+  bottomRow: { flexDirection: 'row', justifyContent: 'center', padding: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  bottomText: { color: '#444' },
+  signup: { color: '#0095f6', fontWeight: '700' },
 });
