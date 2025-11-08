@@ -47,15 +47,8 @@ export default function Index() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Welcome</Text>
         <Text style={styles.cardText} numberOfLines={3}>
-          This is a small demo home screen. Use the button below to open the
-          test page or the auth screens.
+          This is a small demo home screen. Use the button below to open the auth screens.
         </Text>
-
-        <Link href="/test" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Open test page</Text>
-          </Pressable>
-        </Link>
 
         <View style={{ height: 12 }} />
 
