@@ -1,5 +1,6 @@
 import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -11,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { getAuthInstance } from '../../lib/firebase';
+import { getAuthInstance, getFirestoreInstance } from '../../lib/firebase';
 
 export default function RegisterPage(): React.ReactElement {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -30,16 +31,53 @@ export default function RegisterPage(): React.ReactElement {
     setLoading(true);
     try {
       const auth = getAuthInstance();
-      // For simplicity we use emailOrPhone as email; if it's a phone you'd use phone auth flow.
-      const userCred = await createUserWithEmailAndPassword(auth, emailOrPhone.trim(), password);
-      // Optionally set displayName to username or fullName
-      if (userCred.user) {
-        await updateProfile(userCred.user, { displayName: username || fullName || undefined });
+      const db = getFirestoreInstance();
+
+      // Username uniqueness check
+      const usernameTrimmed = username.trim();
+      const usernameQuery = query(collection(db, 'users'), where('username', '==', usernameTrimmed.toLowerCase()));
+      const usernameSnapshot = await getDocs(usernameQuery);
+      if (!usernameTrimmed) {
+        setError('Please enter a username');
+        setLoading(false);
+        return;
       }
+      if (!usernameSnapshot.empty) {
+        setError('Username already taken');
+        setLoading(false);
+        return;
+      }
+
+      // Create user (treat emailOrPhone as email for now)
+      const emailTrimmed = emailOrPhone.trim();
+      const userCred = await createUserWithEmailAndPassword(auth, emailTrimmed, password);
+
+      // Set display name
+      await updateProfile(userCred.user, { displayName: usernameTrimmed || fullName || undefined });
+
+      // Persist profile document
+      const profileDoc = {
+        uid: userCred.user.uid,
+        name: fullName || '',
+        username: usernameTrimmed.toLowerCase(),
+        email: emailTrimmed,
+        image: 'default',
+        followingCount: 0,
+        followersCount: 0,
+        createdAt: new Date(),
+      } as const;
+      await setDoc(doc(db, 'users', userCred.user.uid), profileDoc);
+
       router.replace('/');
     } catch (e: any) {
       console.warn('signup error', e);
-      setError(e?.message ?? 'Sign up failed');
+      // Friendly Firebase error mapping (basic)
+      const message = e?.code === 'auth/weak-password'
+        ? 'Mật khẩu quá ngắn (ít nhất 6 ký tự). Hãy chọn mật khẩu mạnh hơn.'
+        : e?.code === 'auth/email-already-in-use'
+          ? 'Email đã được sử dụng'
+          : e?.message ?? 'Đăng ký thất bại';
+      setError(message);
     } finally {
       setLoading(false);
     }
