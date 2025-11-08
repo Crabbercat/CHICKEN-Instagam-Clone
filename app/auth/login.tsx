@@ -66,7 +66,7 @@ export default function LoginPage(): React.ReactElement {
           <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Log In'}</Text>
         </Pressable>
 
-  {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
+        {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
 
         <Pressable style={styles.centerLink}>
           <Text style={styles.forgot}>Forgot password?</Text>
