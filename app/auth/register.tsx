@@ -89,7 +89,7 @@ export default function RegisterPage(): React.ReactElement {
           <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Register'}</Text>
         </Pressable>
 
-  {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
+        {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
 
         <View style={styles.terms}>
           <Text style={styles.termsText}>By signing up, you agree to our Terms & Privacy Policy.</Text>
