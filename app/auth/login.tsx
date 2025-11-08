@@ -1,6 +1,5 @@
 import { Link, useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,32 +9,26 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { getAuthInstance } from '../../lib/firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser } from '../../redux/authSlice';
+import type { AppDispatch, RootState } from '../../redux/store';
+// Redux-based authentication now; direct Firebase calls moved into thunks.
 
 export default function LoginPage(): React.ReactElement {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
 
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user, loading, error } = useSelector((s: RootState) => s.auth);
 
-  const handleLogin = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const auth = getAuthInstance();
-      // Here we assume identifier is an email. For username/phone you'd resolve to email/server-side.
-      await signInWithEmailAndPassword(auth, identifier.trim(), password);
-      // On success, go to root index
-      router.replace('/');
-    } catch (e: any) {
-      console.warn('login error', e);
-      setError(e?.message ?? 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = () => {
+    dispatch(loginUser({ email: identifier.trim(), password }));
   };
+
+  useEffect(() => {
+    if (user) router.replace('/');
+  }, [user, router]);
 
   const isDisabled = !(identifier && password);
 
@@ -73,7 +66,7 @@ export default function LoginPage(): React.ReactElement {
           <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Log In'}</Text>
         </Pressable>
 
-        {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
+  {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
 
         <Pressable style={styles.centerLink}>
           <Text style={styles.forgot}>Forgot password?</Text>

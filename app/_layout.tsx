@@ -1,12 +1,13 @@
 import { Slot, Stack } from "expo-router";
+import { Provider } from 'react-redux';
+import { store } from '../redux/store';
 
 export default function RootLayout() {
-  // Ensure the navigator renders the Slot (child routes) on first render.
-  // Previously returning only <Stack /> caused navigation attempts before
-  // the navigator was mounted which produced the runtime error.
   return (
-    <Stack>
-      <Slot />
-    </Stack>
+    <Provider store={store}>
+      <Stack>
+        <Slot />
+      </Stack>
+    </Provider>
   );
 }

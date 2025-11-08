@@ -1,7 +1,5 @@
 import { Link, useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +10,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { getAuthInstance, getFirestoreInstance } from '../../lib/firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '../../redux/authSlice';
+import type { AppDispatch, RootState } from '../../redux/store';
+// Firebase direct calls are handled inside Redux thunks (registerUser).
 
 export default function RegisterPage(): React.ReactElement {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -21,67 +22,23 @@ export default function RegisterPage(): React.ReactElement {
   const [password, setPassword] = useState('');
 
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user, loading, error } = useSelector((s: RootState) => s.auth);
 
   const isDisabled = !(emailOrPhone && username && password);
 
-  const handleSignUp = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const auth = getAuthInstance();
-      const db = getFirestoreInstance();
-
-      // Username uniqueness check
-      const usernameTrimmed = username.trim();
-      const usernameQuery = query(collection(db, 'users'), where('username', '==', usernameTrimmed.toLowerCase()));
-      const usernameSnapshot = await getDocs(usernameQuery);
-      if (!usernameTrimmed) {
-        setError('Please enter a username');
-        setLoading(false);
-        return;
-      }
-      if (!usernameSnapshot.empty) {
-        setError('Username already taken');
-        setLoading(false);
-        return;
-      }
-
-      // Create user (treat emailOrPhone as email for now)
-      const emailTrimmed = emailOrPhone.trim();
-      const userCred = await createUserWithEmailAndPassword(auth, emailTrimmed, password);
-
-      // Set display name
-      await updateProfile(userCred.user, { displayName: usernameTrimmed || fullName || undefined });
-
-      // Persist profile document
-      const profileDoc = {
-        uid: userCred.user.uid,
-        name: fullName || '',
-        username: usernameTrimmed.toLowerCase(),
-        email: emailTrimmed,
-        image: 'default',
-        followingCount: 0,
-        followersCount: 0,
-        createdAt: new Date(),
-      } as const;
-      await setDoc(doc(db, 'users', userCred.user.uid), profileDoc);
-
-      router.replace('/');
-    } catch (e: any) {
-      console.warn('signup error', e);
-      // Friendly Firebase error mapping (basic)
-      const message = e?.code === 'auth/weak-password'
-        ? 'Mật khẩu quá ngắn (ít nhất 6 ký tự). Hãy chọn mật khẩu mạnh hơn.'
-        : e?.code === 'auth/email-already-in-use'
-          ? 'Email đã được sử dụng'
-          : e?.message ?? 'Đăng ký thất bại';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+  const handleRegister = () => {
+    dispatch(registerUser({
+      email: emailOrPhone.trim(),
+      password,
+      username: username.trim(),
+      fullName: fullName.trim() || undefined,
+    }));
   };
+
+  useEffect(() => {
+    if (user) router.replace('/');
+  }, [user, router]);
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -124,11 +81,15 @@ export default function RegisterPage(): React.ReactElement {
           placeholderTextColor="#999"
         />
 
-        <Pressable style={[styles.button, (isDisabled || loading) && styles.buttonDisabled]} onPress={handleSignUp} disabled={isDisabled || loading}>
-          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Sign up'}</Text>
+        <Pressable
+          style={[styles.button, (isDisabled || loading) && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={isDisabled || loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Register'}</Text>
         </Pressable>
 
-        {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
+  {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
 
         <View style={styles.terms}>
           <Text style={styles.termsText}>By signing up, you agree to our Terms & Privacy Policy.</Text>
