@@ -2,10 +2,14 @@ import { Link, useRouter } from "expo-router";
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { useDispatch } from 'react-redux';
 import { getAuthInstance, isFirebaseConfigured } from '../lib/firebase';
+import { logoutUser } from '../redux/authSlice';
+import type { AppDispatch } from '../redux/store';
 
 export default function Index() {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -47,15 +51,8 @@ export default function Index() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Welcome</Text>
         <Text style={styles.cardText} numberOfLines={3}>
-          This is a small demo home screen. Use the button below to open the
-          test page or the auth screens.
+          This is a small demo home screen. Use the button below to open the auth screens.
         </Text>
-
-        <Link href="/test" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Open test page</Text>
-          </Pressable>
-        </Link>
 
         <View style={{ height: 12 }} />
 
@@ -65,6 +62,18 @@ export default function Index() {
           </Pressable>
         </Link>
       </View>
+
+      <View style={{ height: 12 }} />
+
+      <Pressable
+        onPress={() => {
+          // Dispatch Redux thunk to sign out; auth listener will redirect to /auth/login
+          dispatch(logoutUser());
+        }}
+        style={styles.logoutButton}
+      >
+        <Text style={styles.logoutText}>Log out</Text>
+      </Pressable>
     </View>
   );
 }
@@ -124,5 +133,16 @@ const styles = StyleSheet.create({
   buttonTextAlt: {
     color: "#007AFF",
     fontWeight: "600",
+  },
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

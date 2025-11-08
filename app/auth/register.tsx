@@ -1,6 +1,5 @@
 import { Link, useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,7 +10,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { getAuthInstance } from '../../lib/firebase';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '../../redux/authSlice';
+import type { AppDispatch, RootState } from '../../redux/store';
+// Firebase direct calls are handled inside Redux thunks (registerUser).
 
 export default function RegisterPage(): React.ReactElement {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -20,30 +22,23 @@ export default function RegisterPage(): React.ReactElement {
   const [password, setPassword] = useState('');
 
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user, loading, error } = useSelector((s: RootState) => s.auth);
 
   const isDisabled = !(emailOrPhone && username && password);
 
-  const handleSignUp = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const auth = getAuthInstance();
-      // For simplicity we use emailOrPhone as email; if it's a phone you'd use phone auth flow.
-      const userCred = await createUserWithEmailAndPassword(auth, emailOrPhone.trim(), password);
-      // Optionally set displayName to username or fullName
-      if (userCred.user) {
-        await updateProfile(userCred.user, { displayName: username || fullName || undefined });
-      }
-      router.replace('/');
-    } catch (e: any) {
-      console.warn('signup error', e);
-      setError(e?.message ?? 'Sign up failed');
-    } finally {
-      setLoading(false);
-    }
+  const handleRegister = () => {
+    dispatch(registerUser({
+      email: emailOrPhone.trim(),
+      password,
+      username: username.trim(),
+      fullName: fullName.trim() || undefined,
+    }));
   };
+
+  useEffect(() => {
+    if (user) router.replace('/');
+  }, [user, router]);
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -86,8 +81,12 @@ export default function RegisterPage(): React.ReactElement {
           placeholderTextColor="#999"
         />
 
-        <Pressable style={[styles.button, (isDisabled || loading) && styles.buttonDisabled]} onPress={handleSignUp} disabled={isDisabled || loading}>
-          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Sign up'}</Text>
+        <Pressable
+          style={[styles.button, (isDisabled || loading) && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={isDisabled || loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Register'}</Text>
         </Pressable>
 
         {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
