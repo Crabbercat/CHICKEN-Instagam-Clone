@@ -6,6 +6,7 @@ import {
   getDocs,
   orderBy,
   query,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import { getFirestoreInstance } from '../lib/firebase';
@@ -63,6 +64,24 @@ export const fetchUserPosts = createAsyncThunk<PostItem[], { uid: string }, { re
   }
 );
 
+export const updateUserProfile = createAsyncThunk<
+  UserProfile,
+  { uid: string; data: Partial<UserProfile> },
+  { rejectValue: string }
+>('user/updateUserProfile', async ({ uid, data }, { rejectWithValue }) => {
+  try {
+    const db = getFirestoreInstance();
+    const ref = doc(db, 'users', uid);
+    // update only provided fields
+    await updateDoc(ref, data as any);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return rejectWithValue('User not found after update');
+    return { uid: snap.id, ...(snap.data() as any) } as UserProfile;
+  } catch (e: any) {
+    return rejectWithValue(e?.message ?? 'Failed to update profile');
+  }
+});
+
 type UserState = {
   profile: UserProfile | null;
   posts: PostItem[];
@@ -113,6 +132,19 @@ const userSlice = createSlice({
       .addCase(fetchUserPosts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Failed to load posts';
+      });
+    builder
+      .addCase(updateUserProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action: PayloadAction<UserProfile>) => {
+        state.loading = false;
+        state.profile = action.payload;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload ?? 'Failed to update profile';
       });
   },
 });
