@@ -1,13 +1,13 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser } from '../../redux/authSlice';
@@ -98,7 +98,7 @@ export default function LoginPage(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', backgroundColor: '#fff' },
+  container: { flex: 1, justifyContent: 'center', backgroundColor: '#fff', paddingBottom: 80 },
   inner: { padding: 24 },
   logo: { fontSize: 40, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
   input: {

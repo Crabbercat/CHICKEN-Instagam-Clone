@@ -1,36 +1,73 @@
-import React from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useSegments } from 'expo-router';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 export default function BottomBar(): React.ReactElement {
   const router = useRouter();
 
-  const items = [
-    { key: 'home', label: 'Home', route: '/tmp/home' },
-    { key: 'search', label: 'Search', route: '/tmp/search' },
-    { key: 'add', label: 'Add', route: '/tmp/addpost' },
-    { key: 'message', label: 'Message', route: '/tmp/message' },
-    { key: 'profile', label: 'Profile', route: '/tmp/profile' },
-  ];
+  const segments = useSegments();
+  // activeSegment corresponds to the second segment for /tmp/<page>
+  const activeSegment = (segments.slice(0)[1] ?? segments.slice(0)[0]) ?? '';
+
+  const items = useMemo(
+    () => [
+      { key: 'home', label: 'Home', route: '/tmp/home', activeKey: 'home', iconActive: 'home', iconInactive: 'home-outline' },
+      { key: 'search', label: 'Search', route: '/tmp/search', activeKey: 'search', iconActive: 'search', iconInactive: 'search-outline' },
+      { key: 'addpost', label: 'Add', route: '/tmp/addpost', activeKey: 'addpost', iconActive: 'add-circle', iconInactive: 'add-circle-outline' },
+      { key: 'message', label: 'Message', route: '/tmp/message', activeKey: 'message', iconActive: 'chatbubble', iconInactive: 'chatbubble-outline' },
+      { key: 'profile', label: 'Profile', route: '/tmp/profile', activeKey: 'profile', iconActive: 'person', iconInactive: 'person-outline' },
+    ],
+    []
+  );
+
+  // Animated values for each item (scale)
+  const animRef = useRef<Map<string, Animated.Value>>(new Map());
+  // initialize values
+  for (const it of items) {
+    if (!animRef.current.has(it.key)) {
+      animRef.current.set(it.key, new Animated.Value(it.activeKey === activeSegment ? 1.15 : 1));
+    }
+  }
 
   return (
     <View style={styles.container} pointerEvents="box-none">
       <View style={styles.inner}>
-        {items.map((it) => (
-          <Pressable
-            key={it.key}
-            onPress={() => router.push(it.route)}
-            style={styles.item}
-          >
-            {/* Placeholder icon/text — replace with your icons later */}
-            <Text style={styles.icon}>◻️</Text>
-            <Text style={styles.label}>{it.label}</Text>
-          </Pressable>
-        ))}
+        {items.map((it) => {
+          const anim = animRef.current.get(it.key) as Animated.Value;
+          const isActive = it.activeKey === activeSegment;
+
+          useEffect(() => {
+            // animate when activeSegment changes
+            Animated.spring(anim, {
+              toValue: isActive ? 1.15 : 1,
+              useNativeDriver: true,
+              friction: 8,
+              tension: 80,
+            }).start();
+          }, [isActive, anim]);
+
+          return (
+            <Pressable
+              key={it.key}
+              onPress={() => router.push(it.route)}
+              style={styles.item}
+            >
+              <Animated.View style={{ transform: [{ scale: anim }] }}>
+                <Ionicons
+                  name={(isActive ? it.iconActive : it.iconInactive) as any}
+                  size={22}
+                  color={isActive ? '#007AFF' : '#444'}
+                />
+              </Animated.View>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -63,5 +100,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     marginTop: 2,
+  },
+  activeIcon: {
+    color: '#007AFF',
+  },
+  activeLabel: {
+    color: '#007AFF',
+    fontWeight: '700',
   },
 });
