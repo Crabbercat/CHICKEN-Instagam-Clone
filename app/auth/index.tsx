@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
 export default function AuthIndex(): React.ReactElement | null {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/auth/login');
+    router.replace('/auth/onboarding');
   }, [router]);
   return null;
 }

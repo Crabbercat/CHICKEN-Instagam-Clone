@@ -13,12 +13,10 @@ export default function Index() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // If Firebase is not configured, avoid initializing the SDK to prevent
-    // runtime errors like auth/invalid-api-key. Redirect to login so the
-    // app continues to function in dev without crashing.
+    // Nếu Firebase chưa cấu hình → chuyển đến onboarding
     if (!isFirebaseConfigured()) {
-      console.warn('Firebase not configured (EXPO_FIREBASE_API_KEY missing). Redirecting to /auth/login.');
-      InteractionManager.runAfterInteractions(() => router.replace('/auth/login'));
+      console.warn('Firebase not configured — redirecting to /auth/onboarding.');
+      InteractionManager.runAfterInteractions(() => router.replace('/auth/onboarding'));
       setChecking(false);
       return;
     }
@@ -26,14 +24,12 @@ export default function Index() {
     const auth = getAuthInstance();
     const unsub = onAuthStateChanged(auth, (user: User | null) => {
       if (!user) {
-        // If not logged in, send to login after interactions finish so the
-        // navigation system has mounted.
-        InteractionManager.runAfterInteractions(() => router.replace('/auth/login'));
+        // Chưa đăng nhập → chuyển đến Onboarding
+        InteractionManager.runAfterInteractions(() => router.replace('/auth/onboarding'));
       }
       setChecking(false);
     });
     return unsub;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (checking) {
@@ -51,14 +47,15 @@ export default function Index() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Welcome</Text>
         <Text style={styles.cardText} numberOfLines={3}>
-          This is a small demo home screen. Use the button below to open the auth screens.
+          This is a small demo home screen.
         </Text>
 
         <View style={{ height: 12 }} />
 
-        <Link href="/auth/login" asChild>
+        {/* Chuyển đến Onboarding ngay trong App */}
+        <Link href="/auth/onboarding" asChild>
           <Pressable style={styles.buttonAlt}>
-            <Text style={styles.buttonTextAlt}>Open Auth (Register / Login)</Text>
+            <Text style={styles.buttonTextAlt}>Go to Onboarding</Text>
           </Pressable>
         </Link>
       </View>
@@ -67,7 +64,6 @@ export default function Index() {
 
       <Pressable
         onPress={() => {
-          // Dispatch Redux thunk to sign out; auth listener will redirect to /auth/login
           dispatch(logoutUser());
         }}
         style={styles.logoutButton}
@@ -109,17 +105,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#444",
     marginBottom: 12,
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "600",
   },
   buttonAlt: {
     backgroundColor: "#fff",
