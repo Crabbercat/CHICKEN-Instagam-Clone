@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import React from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function TmpPost(): React.ReactElement {
   const params = useLocalSearchParams();
