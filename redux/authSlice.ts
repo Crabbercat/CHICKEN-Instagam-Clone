@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile, User } from 'firebase/auth';
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { getAuthInstance, getFirestoreInstance } from '../lib/firebase';
 
@@ -87,6 +87,20 @@ export const loginUser = createAsyncThunk<
   }
 });
 
+export const sendPasswordReset = createAsyncThunk<
+  void,
+  { email: string },
+  { rejectValue: string }
+>('auth/sendPasswordReset', async ({ email }, { rejectWithValue }) => {
+  try {
+    const auth = getAuthInstance();
+    await sendPasswordResetEmail(auth, email.trim());
+    return;
+  } catch (e: any) {
+    return rejectWithValue(mapFirebaseError(e));
+  }
+});
+
 export const logoutUser = createAsyncThunk<void, void, { rejectValue: string }>(
   'auth/logoutUser',
   async (_, { rejectWithValue }) => {
@@ -147,6 +161,17 @@ const authSlice = createSlice({
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Login failed';
+      })
+      .addCase(sendPasswordReset.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(sendPasswordReset.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(sendPasswordReset.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload ?? 'Failed to send reset email';
       })
       .addCase(logoutUser.pending, (state) => {
         state.loading = true;

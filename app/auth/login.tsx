@@ -1,13 +1,13 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser } from '../../redux/authSlice';
@@ -68,9 +68,11 @@ export default function LoginPage(): React.ReactElement {
 
         {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 8 }}>{error}</Text> : null}
 
-        <Pressable style={styles.centerLink}>
-          <Text style={styles.forgot}>Forgot password?</Text>
-        </Pressable>
+        <Link href="/auth/forgot" asChild>
+          <Pressable style={styles.centerLink}>
+            <Text style={styles.forgot}>Forgot password?</Text>
+          </Pressable>
+        </Link>
 
         <View style={styles.dividerRow}>
           <View style={styles.line} />
