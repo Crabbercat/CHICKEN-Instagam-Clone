@@ -1,3 +1,4 @@
+// CHICKEN-Instagam-Clone/app/components/BottomBar.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import React, { useEffect, useMemo, useRef } from 'react';

@@ -37,6 +37,7 @@ const INLINE_CONFIG = {
   measurementId: '',
 };
 
+
 const firebaseConfig = INLINE_TEST_CONFIG
   ? (console.warn('Firebase: using INLINE_CONFIG for testing (remove before commit)'), INLINE_CONFIG)
   : {
@@ -49,6 +50,10 @@ const firebaseConfig = INLINE_TEST_CONFIG
       appId: normalizeEnv(expoExtra.EXPO_FIREBASE_APP_ID ?? process.env.EXPO_FIREBASE_APP_ID),
       measurementId: normalizeEnv(expoExtra.EXPO_FIREBASE_MEASUREMENT_ID ?? process.env.EXPO_FIREBASE_MEASUREMENT_ID),
     };
+
+const app = initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);   // <-- Quan trọng
 
 export function isFirebaseConfigured(): boolean {
   const key = firebaseConfig?.apiKey ?? '';
