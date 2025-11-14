@@ -6,10 +6,15 @@ import {
   Pressable,
   ImageBackground,
   Animated,
+  Image,
+ 
   Easing
 } from 'react-native';
 import { Link } from 'expo-router';
 import Snowflake from '../components/Snow'; // ❄ import hiệu ứng tuyết
+import { LinearGradient } from 'expo-linear-gradient';
+
+
 
 
 export default function Onboarding(): React.ReactElement {
@@ -56,43 +61,30 @@ export default function Onboarding(): React.ReactElement {
 
       {/* TEXT + NÚT */}
       <Animated.View style={[styles.content, animatedStyle]}>
-        <Text
-          style={[
-            styles.title,
-            {
-              color: '#e8440eff',
-              marginTop: 8,
-              letterSpacing: 4,
-              fontWeight: '900',
-              fontFamily: 'Arial',
-              textShadowColor: 'rgba(230, 42, 142, 0.4)',
-              textShadowOffset: { width: 2, height: 2 },
-              textShadowRadius: 6,
-            }
-          ]}
-        >
-          INSTAGRAM
-        </Text>
-
-
-        <Text style={[styles.subtitle, { color: '#f2f2f2' }]}>
-          Cùng kết nối với bạn bè và thế giới xung quanh bạn trên Instagram.
-        </Text>
+        <Image
+          source={require('../../assets/images/logo_insta.png')}
+          style={{ width: 150, height: 150, marginBottom:10}}
+        />
         <Text style={[styles.subtitle, { color: '#edf10bff', fontSize:12 }]}>
             Ứng dụng được phát triển bởi Chicken Team.
         </Text>
 
-        <View style={{ height: 28 }} />
+        <View style={{ height: 20 }} />
 
-        <Link href="/auth/login" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Bắt đầu</Text>
-          </Pressable>
-        </Link>
-
+      <Link href="/auth/login" asChild>
+      <Pressable style={styles.buttonWrapper}>
+        <LinearGradient
+          colors={['#833AB4', '#FD1D1D', '#FCB045']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.buttonGradient}
+        >
+          <Text style={styles.buttonGradientText}>Bắt đầu</Text>
+        </LinearGradient>
+      </Pressable>
+    </Link>
 
         <View style={{ height: 12 }} />
-
       </Animated.View>
     </ImageBackground>
   );
@@ -117,14 +109,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-
   subtitle: {
     fontSize: 17,
     color: '#f2f2f2',
@@ -132,28 +116,30 @@ const styles = StyleSheet.create({
     maxWidth: 540,
   },
 
-  button: {
-  width: 110,
-  height: 35,
-  paddingVertical: 12,
-  borderRadius: 30,
-  alignItems: "center",
-  justifyContent: "center",
+  buttonGradient: {
+  width: 95,
+  height: 40,
+  paddingVertical: 14,
+  borderRadius: 14,
+  alignItems: 'center',
+  justifyContent: 'center',
+  display: 'flex',
 
-  // ⭐ Gradient giả bằng overlay màu hồng tím
-  backgroundColor: "#f96464ff",
-  shadowColor: "#e1306c",
-  shadowOpacity: 0.4,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 4 },
-
-  elevation: 6, // Android shadow
+  shadowColor: '#000',
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 4,
   },
 
-  buttonText: {
-  color: "#ffffffd8",
-  fontWeight: "700",
-  fontSize: 18,
-  letterSpacing: 1,
+  buttonGradientText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
+  buttonWrapper: {
+  width: '100%',
+  alignItems: 'center',   // ⭐ Căn giữa Pressable
+},
 });
