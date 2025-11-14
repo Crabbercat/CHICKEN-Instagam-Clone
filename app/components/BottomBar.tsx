@@ -23,12 +23,31 @@ export default function BottomBar(): React.ReactElement {
 
   // Animated values for each item (scale)
   const animRef = useRef<Map<string, Animated.Value>>(new Map());
-  // initialize values
-  for (const it of items) {
-    if (!animRef.current.has(it.key)) {
-      animRef.current.set(it.key, new Animated.Value(it.activeKey === activeSegment ? 1.15 : 1));
+  
+  // Initialize animation values once
+  useEffect(() => {
+    for (const it of items) {
+      if (!animRef.current.has(it.key)) {
+        animRef.current.set(it.key, new Animated.Value(it.activeKey === activeSegment ? 1.15 : 1));
+      }
     }
-  }
+  }, [items, activeSegment]);
+
+  // Animate active segment changes
+  useEffect(() => {
+    items.forEach((it) => {
+      const anim = animRef.current.get(it.key);
+      if (anim) {
+        const isActive = it.activeKey === activeSegment;
+        Animated.spring(anim, {
+          toValue: isActive ? 1.15 : 1,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 80,
+        }).start();
+      }
+    });
+  }, [activeSegment, items]);
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -36,16 +55,6 @@ export default function BottomBar(): React.ReactElement {
         {items.map((it) => {
           const anim = animRef.current.get(it.key) as Animated.Value;
           const isActive = it.activeKey === activeSegment;
-
-          useEffect(() => {
-            // animate when activeSegment changes
-            Animated.spring(anim, {
-              toValue: isActive ? 1.15 : 1,
-              useNativeDriver: true,
-              friction: 8,
-              tension: 80,
-            }).start();
-          }, [isActive, anim]);
 
           return (
             <Pressable
@@ -100,12 +109,5 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     marginTop: 2,
-  },
-  activeIcon: {
-    color: '#007AFF',
-  },
-  activeLabel: {
-    color: '#007AFF',
-    fontWeight: '700',
   },
 });
