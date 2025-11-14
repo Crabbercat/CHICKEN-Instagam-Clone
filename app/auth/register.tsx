@@ -110,7 +110,7 @@ export default function RegisterPage(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#fff' },
-  container: { padding: 24, alignItems: 'stretch' },
+  container: { padding: 24, alignItems: 'stretch', paddingBottom: 80 },
   logo: { fontSize: 40, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
   input: {
     height: 44,
