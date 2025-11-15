@@ -4,6 +4,8 @@ import { useLocalSearchParams } from "expo-router";
 import { db, auth } from "../../firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc} from "firebase/firestore";
 
+//test
+
 type Message = {
   id: string;
   text: string;

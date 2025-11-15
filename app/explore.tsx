@@ -3,6 +3,8 @@ import { View, Image, FlatList, StyleSheet } from "react-native";
 import { db } from "../firebase";
 import { collection, orderBy, getDocs, query } from "firebase/firestore";
 
+//test
+
 type Post = {
   id: string;
   mediaUrl: string;

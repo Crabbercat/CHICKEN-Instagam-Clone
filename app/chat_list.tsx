@@ -4,6 +4,8 @@ import { db, auth } from "../firebase";
 import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
+//test
+
 type Chat = {
   id: string;
   participants: string[];
