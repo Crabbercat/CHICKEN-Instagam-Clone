@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
-import { db, auth } from "../../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
@@ -14,16 +14,23 @@ type Chat = {
 
 export default function ChatListScreen() {
   const [chats, setChats] = useState<Chat[]>([]);
-  const user = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) return;
+    const unsub = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
 
     const ref = collection(db, "chats");
     const q = query(
       ref,
-      where("participants", "array-contains", user.uid),
+      where("participants", "array-contains", currentUser.uid),
       orderBy("lastMessageAt", "desc")
     );
 
@@ -41,7 +48,7 @@ export default function ChatListScreen() {
         data={chats}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => {
-          const otherId = item.participants.find((id) => id !== user.uid);
+          const otherId = item.participants.find((id) => id !== currentUser?.uid);
 
           return (
             <TouchableOpacity

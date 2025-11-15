@@ -55,6 +55,8 @@ const app = initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);   // <-- Quan trọng
 
+export const auth = getAuth(app);
+
 export function isFirebaseConfigured(): boolean {
   const key = firebaseConfig?.apiKey ?? '';
   // Basic sanity check: Firebase API keys for web projects commonly start with

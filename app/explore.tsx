@@ -1,6 +1,6 @@
 import { use, useEffect, useState } from "react";
 import { View, Image, FlatList, StyleSheet } from "react-native";
-import { db } from "../../lib/firebase";
+import { db } from "../lib/firebase";
 import { collection, orderBy, getDocs, query } from "firebase/firestore";
 
 type Post = {

@@ -15,7 +15,7 @@ export default function ChatScreen() {
   const { chatId } = useLocalSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
-  const user = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
   useEffect(() => {
     const ref = collection(db, "chats", chatId as string, "messages");
@@ -34,7 +34,7 @@ export default function ChatScreen() {
 
     await addDoc(collection(db, "chats", chatId as string, "messages"), {
       text,
-      senderId: user.uid,
+      senderId: currentUser?.uid,
       createdAt: serverTimestamp(),
     });
 
@@ -60,7 +60,7 @@ export default function ChatScreen() {
           <View
             style={[
               styles.msg,
-              item.senderId === user.uid ? styles.me : styles.them
+              item.senderId === currentUser?.uid ? styles.me : styles.them
             ]}
           >
             <Text>{item.text}</Text>
