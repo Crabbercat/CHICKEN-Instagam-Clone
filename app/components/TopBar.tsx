@@ -16,7 +16,8 @@ export default function TopBar() {
 const styles = StyleSheet.create({
   container: {
     height: 60,
-    backgroundColor: "#fff",
+    width: "100%",
+    backgroundColor: "white", 
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,

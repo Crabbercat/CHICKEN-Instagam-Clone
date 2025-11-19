@@ -19,41 +19,41 @@ export default function PostItem({ post }: { post: any }) {
   }, [post.userId]);
 
   return (
-    <View style={styles.post}>
+    <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>
+      <View style={styles.post}>
 
-      {/* USER INFO */}
-      <View style={styles.row}>
-        <Image
-          source={{ uri: user.image ?? "" }}
-          style={styles.avatar}
-        />
-        <Text style={styles.username}>{user.username}</Text>
+        {/* USER INFO */}
+        <View style={styles.row}>
+          <Image source={{ uri: user.image ?? "" }} style={styles.avatar} />
+          <Text style={styles.username}>{user.username}</Text>
+        </View>
+
+        {/* IMAGE */}
+        <Image source={{ uri: post.mediaUrl }} style={styles.image} />
+
+        {/* CAPTION */}
+        <Text style={styles.caption}>{post.caption}</Text>
+
+        {/* TIME */}
+        <Text style={styles.time}>
+          {post.creation?.seconds
+            ? new Date(post.creation.seconds * 1000).toLocaleString()
+            : ""}
+        </Text>
+
+        {/* ACTIONS */}
+        <View style={styles.row}>
+          <Pressable onPress={() => toggleLike(post.id, post.userId)}>
+            <Text style={styles.action}>❤️ {post.likesCount}</Text>
+          </Pressable>
+
+          <Pressable onPress={() => router.push(`/tmp/comments/${post.id}`)}>
+            <Text style={styles.action}>💬 {post.commentsCount}</Text>
+          </Pressable>
+        </View>
+
       </View>
-      {/* IMAGE */}
-      <Image source={{ uri: post.mediaUrl }} style={styles.image} />
-
-      {/* CAPTION */}
-      <Text style={styles.caption}>{post.caption}</Text>
-
-      {/* TIME */}
-      <Text style={styles.time}>
-        {post.creation?.seconds
-          ? new Date(post.creation.seconds * 1000).toLocaleString()
-          : ""}
-      </Text>
-
-      {/* ACTIONS */}
-      <View style={styles.row}>
-        <Pressable onPress={() => toggleLike(post.id, post.userId)}>
-          <Text style={styles.action}>❤️ {post.likesCount}</Text>
-        </Pressable>
-
-        <Pressable onPress={() => router.push(`/tmp/comments/${post.id}`)}>
-          <Text style={styles.action}>💬 {post.commentsCount}</Text>
-        </Pressable>
-      </View>
-
-    </View>
+    </Pressable>
   );
 }
 

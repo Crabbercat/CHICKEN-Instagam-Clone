@@ -17,7 +17,7 @@ export default function Home() {
   }, []);
 
   return (
-    <View style={{ flex: 1, paddingTop: 40 , backgroundColor: 'white'}}>
+    <View style={{ flex: 1 , backgroundColor: 'white'}}>
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}

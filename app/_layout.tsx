@@ -10,12 +10,13 @@ export default function RootLayout() {
   // Hide bottom bar on auth screens (login/register)
   const hideBottomBar = segments[0] === 'auth';
   const hideTopBar = segments[0] === 'auth';
+  console.log(segments);  // Kiểm tra giá trị của segments
 
   return (
     <Provider store={store}>
       <View style={styles.container}>
+        {!hideTopBar && <TopBar />}  
         <Stack screenOptions={{ headerShown: false }}>
-           {!hideTopBar && <TopBar />}  
           <Slot />
         </Stack>
         {!hideBottomBar && <BottomBar />}

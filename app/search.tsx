@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { db } from "../lib/firebase";
 import { collection, query, orderBy, startAt, endAt, getDocs } from "firebase/firestore";
 import { useRouter } from "expo-router";
@@ -8,7 +8,7 @@ type User = {
   id: string;
   name?: string;
   username?: string;
-  image?: string;
+  image?: string;  // Đảm bảo có trường image
 };
 
 export default function SearchScreen() {
@@ -23,17 +23,17 @@ export default function SearchScreen() {
     }
     const delay = setTimeout(() => searchUsers(text), 500);
     return () => clearTimeout(delay);
-    }, [text]);
+  }, [text]);
 
-    const searchUsers = async (searchText: string) => {
-        const ref = collection(db, "users");
-        const q = query(ref, orderBy("username"), startAt(searchText), endAt(searchText + "\uf8ff"));
-        const querySnapshot = await getDocs(q); 
-        setUsers(querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<User, "id">) })));
-    };
-    
-    return (
-        <View style={styles.container}>
+  const searchUsers = async (searchText: string) => {
+    const ref = collection(db, "users");
+    const q = query(ref, orderBy("username"), startAt(searchText), endAt(searchText + "\uf8ff"));
+    const querySnapshot = await getDocs(q); 
+    setUsers(querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<User, "id">) })));
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: 'white' }]}>
       <TextInput
         placeholder="Search username..."
         style={styles.input}
@@ -49,7 +49,10 @@ export default function SearchScreen() {
             style={styles.user}
             onPress={() => router.push(`/chat/${item.id}`)}
           >
-            <View style={styles.avatar} />
+            <Image
+              source={{ uri: item.image || 'https://placekitten.com/200/200' }}  // Thêm URL ảnh người dùng hoặc ảnh mặc định
+              style={styles.avatar}
+            />
             <View>
               <Text style={styles.username}>{item.username}</Text>
               <Text>{item.name}</Text>

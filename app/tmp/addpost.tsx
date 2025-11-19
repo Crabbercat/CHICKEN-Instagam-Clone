@@ -114,7 +114,7 @@ export default function CreatePost() {
   };
 
   return (
-    <View style={{ padding: 16 }}>
+    <View style={{ padding: 16, backgroundColor: "white", flex: 1 }}>
       {/* Pick Image */}
       <Pressable
         onPress={pickImage}
