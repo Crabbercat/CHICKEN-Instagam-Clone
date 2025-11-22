@@ -7,6 +7,8 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
 import { Platform } from "react-native";
+import { GestureResponderEvent } from "react-native";
+
 
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
