@@ -11,15 +11,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";   // <-- Firebase config của bạn
-
-// Helper convert blob → data URI (base64)
-const blobToDataURI = (blob: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject("Cannot read blob");
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
+import { uploadImageToCloudinary } from "../../lib/cloudinary";
 
 export default function CreatePost() {
   const [caption, setCaption] = useState("");
@@ -55,42 +47,7 @@ export default function CreatePost() {
     setUploading(true);
 
     try {
-      // ---- (1) Convert URI to base64 if needed ----
-      let fileToUpload: any = image;
-
-      if (image.startsWith("blob:")) {
-        const resp = await fetch(image);
-        const blob = await resp.blob();
-        fileToUpload = await blobToDataURI(blob);
-      } else {
-        fileToUpload = {
-          uri: image,
-          name: "photo.jpg",
-          type: "image/jpeg",
-        } as any;
-      }
-
-      // ---- (2) Upload to Cloudinary ----
-      const form = new FormData();
-      form.append("file", fileToUpload);
-      form.append("upload_preset", "instagram_upload");
-      form.append("cloud_name", "dcf0q6azv");
-
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dcf0q6azv/image/upload",
-        {
-          method: "POST",
-          body: form,
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.secure_url) {
-        throw new Error("Upload failed");
-      }
-
-      const mediaUrl = result.secure_url;
+      const mediaUrl = await uploadImageToCloudinary({ uri: image, fileName: 'post-photo.jpg', mimeType: 'image/jpeg' });
 
       // ---- (3) Save Post to Firestore ----
       await addDoc(collection(db, "posts"), {
