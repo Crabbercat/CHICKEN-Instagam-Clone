@@ -27,11 +27,6 @@ export default function PostItem({ post }: { post: any }) {
     load();
   }, []);
 
-  const openProfile = (event?: GestureResponderEvent) => {
-    event?.stopPropagation?.();
-    if (!post.userId) return;
-    router.push({ pathname: '/user/profile', params: { uid: post.userId } });
-  };
 
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>
