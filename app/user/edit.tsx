@@ -1,11 +1,11 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useDispatch, useSelector } from 'react-redux';
+import { uploadImageToCloudinary } from '../../lib/cloudinary';
 import type { AppDispatch, RootState } from '../../redux/store';
 import { updateUserProfile } from '../../redux/userSlice';
-import { uploadImageToCloudinary } from '../../lib/cloudinary';
 
 export default function EditProfile(): React.ReactElement {
   const params = useLocalSearchParams();

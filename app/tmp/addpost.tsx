@@ -1,17 +1,17 @@
-import React, { useState } from "react";
-import {
-  Text,
-  View,
-  Image,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../../lib/firebase";   // <-- Firebase config của bạn
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { uploadImageToCloudinary } from "../../lib/cloudinary";
+import { db } from "../../lib/firebase"; // <-- Firebase config của bạn
 
 export default function CreatePost() {
   const [caption, setCaption] = useState("");
