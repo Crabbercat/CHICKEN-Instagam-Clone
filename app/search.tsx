@@ -3,7 +3,8 @@ import { collection, endAt, getDocs, orderBy, query, startAt } from "firebase/fi
 import { useEffect, useState } from "react";
 import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../lib/firebase";
-
+import { collection, query, orderBy, startAt, endAt, getDocs } from "firebase/firestore";
+import { useRouter } from "expo-router";
 type User = {
   id: string;
   name?: string;
