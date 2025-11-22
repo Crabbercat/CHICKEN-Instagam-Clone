@@ -34,22 +34,42 @@ function mapFirebaseError(e: any): string {
   }
 }
 
+function normalizePhone(value: string): string {
+  return value.replace(/[^\d+]/g, '');
+}
+
+type IdentifierKind = 'email' | 'username' | 'phone';
+
+function detectIdentifierKind(value: string): IdentifierKind {
+  if (value.includes('@')) return 'email';
+  const normalized = normalizePhone(value);
+  if (normalized.length >= 6 && /^\+?\d+$/.test(normalized)) return 'phone';
+  return 'username';
+}
+
 export const registerUser = createAsyncThunk<
   AuthUser,
-  { email: string; password: string; username: string; fullName?: string },
+  { email: string; password: string; username: string; fullName?: string; phone: string },
   { rejectValue: string }
 >('auth/registerUser', async (args, { rejectWithValue }) => {
   try {
-    const { email, password, username, fullName } = args;
+    const { email, password, username, fullName, phone } = args;
     const auth = getAuthInstance();
     const db = getFirestoreInstance();
 
     const uname = username.trim().toLowerCase();
     if (!uname) return rejectWithValue('Please enter a username');
+    const normalizedPhone = normalizePhone(phone || '');
+    if (!normalizedPhone) return rejectWithValue('Please enter a phone number');
     // username uniqueness
     const q = query(collection(db, 'users'), where('username', '==', uname));
     const snap = await getDocs(q);
     if (!snap.empty) return rejectWithValue('Username already taken');
+
+    // phone uniqueness
+    const phoneQuery = query(collection(db, 'users'), where('phone', '==', normalizedPhone));
+    const phoneSnap = await getDocs(phoneQuery);
+    if (!phoneSnap.empty) return rejectWithValue('Phone number already registered');
 
     // create user
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -61,6 +81,8 @@ export const registerUser = createAsyncThunk<
       name: fullName || '',
       username: uname,
       email: email.trim(),
+      phone: normalizedPhone,
+      bio: '',
       image: 'default',
       followingCount: 0,
       followersCount: 0,
@@ -73,14 +95,56 @@ export const registerUser = createAsyncThunk<
   }
 });
 
+export type IdentifierErrorCode =
+  | 'identifier/not-email'
+  | 'identifier/not-username'
+  | 'identifier/not-phone'
+  | 'identifier/invalid'
+  | 'identifier/unknown';
+
 export const loginUser = createAsyncThunk<
   AuthUser,
-  { email: string; password: string },
-  { rejectValue: string }
->('auth/loginUser', async ({ email, password }, { rejectWithValue }) => {
+  { identifier: string; password: string },
+  { rejectValue: string | IdentifierErrorCode }
+>('auth/loginUser', async ({ identifier, password }, { rejectWithValue }) => {
   try {
     const auth = getAuthInstance();
-    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const trimmed = identifier.trim();
+    const kind = detectIdentifierKind(trimmed);
+    let emailToUse = trimmed;
+
+    if (kind === 'username') {
+      const db = getFirestoreInstance();
+      const usersRef = collection(db, 'users');
+      const uname = trimmed.toLowerCase();
+      const unameQuery = query(usersRef, where('username', '==', uname));
+      const unameSnap = await getDocs(unameQuery);
+      if (unameSnap.empty) {
+        return rejectWithValue('identifier/not-username');
+      }
+      emailToUse = (unameSnap.docs[0].data()?.email as string) ?? '';
+      if (!emailToUse) {
+        return rejectWithValue('identifier/unknown');
+      }
+    } else if (kind === 'phone') {
+      const normalizedPhone = normalizePhone(trimmed);
+      if (!normalizedPhone) {
+        return rejectWithValue('identifier/invalid');
+      }
+      const db = getFirestoreInstance();
+      const usersRef = collection(db, 'users');
+      const phoneQuery = query(usersRef, where('phone', '==', normalizedPhone));
+      const phoneSnap = await getDocs(phoneQuery);
+      if (phoneSnap.empty) {
+        return rejectWithValue('identifier/not-phone');
+      }
+      emailToUse = (phoneSnap.docs[0].data()?.email as string) ?? '';
+      if (!emailToUse) {
+        return rejectWithValue('identifier/unknown');
+      }
+    }
+
+    const cred = await signInWithEmailAndPassword(auth, emailToUse.trim(), password);
     return toAuthUser(cred.user);
   } catch (e: any) {
     return rejectWithValue(mapFirebaseError(e));
@@ -160,7 +224,12 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? 'Login failed';
+        const payload = action.payload;
+        if (typeof payload === 'string' && payload.startsWith('identifier/')) {
+          state.error = null;
+        } else {
+          state.error = (payload as string) ?? 'Login failed';
+        }
       })
       .addCase(sendPasswordReset.pending, (state) => {
         state.loading = true;
