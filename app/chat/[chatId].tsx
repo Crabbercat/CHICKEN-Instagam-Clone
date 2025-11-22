@@ -34,7 +34,7 @@ export default function ChatDetail() {
 
   const flatListRef = useRef<any>(null);
 
-  // Load messages
+  // Load messages realtime
   useEffect(() => {
     if (!chatId) return;
 
@@ -54,14 +54,19 @@ export default function ChatDetail() {
     return () => unsub();
   }, [chatId]);
 
-  // Load user info
+  // Load partner info
   useEffect(() => {
     const loadPartner = async () => {
       const chatSnap = await getDoc(doc(db, "chats", chatId));
       if (!chatSnap.exists()) return;
 
       const participants = chatSnap.data().participants;
-      const otherUid = participants.find((u: string) => u !== currentUid);
+
+      // FIX SELF CHAT
+      const otherUid =
+        participants.length === 1
+          ? currentUid
+          : participants.find((u: string) => u !== currentUid);
 
       const userSnap = await getDoc(doc(db, "users", otherUid));
       if (userSnap.exists()) {
@@ -90,10 +95,11 @@ export default function ChatDetail() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingBottom: 0 }}
+      style={{ flex: 1, paddingBottom: 40 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={[styles.container, { paddingBottom: 60 }]}>
+      <View style={[styles.container, { paddingBottom: 40 }]}>
+        
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -108,7 +114,7 @@ export default function ChatDetail() {
               style={styles.headerAvatar}
             />
             <Text style={styles.headerName}>
-              {otherUser?.username || "Loading..."}
+              {otherUser?.username || "You"}
             </Text>
           </View>
         </View>
@@ -157,6 +163,7 @@ export default function ChatDetail() {
             <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
           </TouchableOpacity>
         </View>
+
       </View>
     </KeyboardAvoidingView>
   );

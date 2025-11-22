@@ -3,12 +3,9 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
-  startAt,
-  endAt,
   where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -22,11 +19,7 @@ import {
   View,
 } from "react-native";
 import { auth, db } from "../../lib/firebase";
-import { createOrGetChat } from "../../lib/chat";
 
-// -----------------------------
-// TYPES
-// -----------------------------
 type Chat = {
   id: string;
   participants?: string[];
@@ -41,24 +34,15 @@ type User = {
   image?: string;
 };
 
-// -----------------------------
-// MAIN SCREEN
-// -----------------------------
 export default function ChatList() {
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
 
-  const [mode, setMode] = useState<"chat" | "search">("chat");
-
-  const [text, setText] = useState("");
-  const [searchUsers, setSearchUsers] = useState<User[]>([]);
-
   const [chats, setChats] = useState<Chat[]>([]);
   const [users, setUsers] = useState<Record<string, User>>({});
+  const [search, setSearch] = useState("");
 
-  // -----------------------------
-  // LOAD CHAT LIST
-  // -----------------------------
+  // Load danh sách chat
   useEffect(() => {
     if (!currentUid) return;
 
@@ -69,200 +53,120 @@ export default function ChatList() {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(
-        (d) => ({ id: d.id, ...(d.data() as Omit<Chat, "id">) }) as Chat
+      setChats(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
       );
-      setChats(data);
     });
 
     return () => unsub();
-  }, []);
+  }, [currentUid]);
 
-  // -----------------------------
-  // LOAD USER INFO FOR CHAT LIST
-  // -----------------------------
+  // Load thông tin user còn lại
   useEffect(() => {
-    chats.forEach((chat) => {
-      const otherUid = chat.participants?.find((u) => u !== currentUid);
-      if (otherUid && !users[otherUid]) {
-        getDoc(doc(db, "users", otherUid)).then((snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as User;
+    chats.forEach(async (chat) => {
+      // FIX self-chat
+      const otherUid =
+        chat.participants?.length === 1
+          ? currentUid
+          : chat.participants?.find((u) => u !== currentUid);
 
-            setUsers((prev) => ({
-              ...prev,
-              [otherUid]: {
-                id: otherUid,
-                username: data.username,
-                name: data.name,
-                image: data.image,
-              },
-            }));
-          }
-        });
+      if (otherUid && !users[otherUid]) {
+        const snap = await getDoc(doc(db, "users", otherUid));
+        if (snap.exists()) {
+          setUsers((prev) => ({
+            ...prev,
+            [otherUid]: { id: otherUid, ...(snap.data() as any) },
+          }));
+        }
       }
     });
   }, [chats]);
 
-  // -----------------------------
-  // SEARCH USERS
-  // -----------------------------
-  useEffect(() => {
-    if (!text.trim()) {
-      setSearchUsers([]);
-      setMode("chat");
-      return;
-    }
+  // Filter ChatList theo search
+  const filtered = chats.filter((chat) => {
+    const otherUid =
+      chat.participants?.length === 1
+        ? currentUid
+        : chat.participants?.find((u) => u !== currentUid);
 
-    setMode("search");
+    const user = otherUid ? users[otherUid] : null;
+    if (!user) return false;
 
-    const delay = setTimeout(() => searchUser(text.trim()), 400);
-    return () => clearTimeout(delay);
-  }, [text]);
+    const keyword = search.toLowerCase();
 
-  const searchUser = async (keyword: string) => {
-    const ref = collection(db, "users");
-    const q = query(
-      ref,
-      orderBy("username"),
-      startAt(keyword.toLowerCase()),
-      endAt(keyword.toLowerCase() + "\uf8ff")
+    return (
+      user.username?.toLowerCase().includes(keyword) ||
+      user.name?.toLowerCase().includes(keyword)
     );
+  });
 
-    const snap = await getDocs(q);
-    setSearchUsers(
-      snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<User, "id">) }))
-    );
-  };
-
-  // -----------------------------
-  // OPEN CHAT
-  // -----------------------------
-  const openChat = async (otherUid: string) => {
-    const chatId = await createOrGetChat(otherUid);
-    if (chatId) router.push(`/chat/${chatId}`);
-  };
-
-  // -----------------------------
-  // RENDER UI
-  // -----------------------------
   return (
     <View style={{ flex: 1, backgroundColor: "#fff", padding: 12 }}>
-      {/* TITLE */}
-      <Text style={styles.title}>Messages</Text>
-
-      {/* SEARCH */}
+      {/* Search */}
       <TextInput
-        style={styles.searchInput}
-        placeholder="Search username…"
-        value={text}
-        onChangeText={setText}
+        placeholder="Search name or username..."
+        style={styles.searchBox}
+        value={search}
+        onChangeText={setSearch}
       />
 
-      {/* SEARCH RESULTS */}
-      {mode === "search" ? (
-        <FlatList
-          data={searchUsers}
-          keyExtractor={(u) => u.id}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const otherUid =
+            item.participants?.length === 1
+              ? currentUid
+              : item.participants?.find((u) => u !== currentUid);
+
+          const user = otherUid ? users[otherUid] : null;
+          if (!user) return null;
+
+          return (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => router.push(`/chat/${item.id}`)}
+            >
               <Image
                 source={{
-                  uri: item.image || "https://placekitten.com/200/200",
+                  uri: user.image || "https://placekitten.com/200/200",
                 }}
                 style={styles.avatar}
               />
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.username}>{item.username}</Text>
-                <Text style={styles.subtitle}>{item.name}</Text>
+              <View>
+                <Text style={styles.username}>
+                  {otherUid === currentUid ? "You" : user.username}
+                </Text>
+                <Text style={styles.lastMsg}>
+                  {item.lastMessage || "No messages yet"}
+                </Text>
               </View>
-
-              <TouchableOpacity
-                style={styles.chatBtn}
-                onPress={() => openChat(item.id)}
-              >
-                <Text style={styles.chatBtnText}>Chat</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-      ) : (
-        /* CHAT LIST */
-        <FlatList
-          data={chats}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const otherUid =
-              item.participants?.find((u) => u !== currentUid) || "";
-            const other = users[otherUid];
-
-            return (
-              <TouchableOpacity
-                style={styles.row}
-                onPress={() => router.push(`/chat/${item.id}`)}
-              >
-                <Image
-                  source={{
-                    uri: other?.image || "https://placekitten.com/200/200",
-                  }}
-                  style={styles.avatar}
-                />
-
-                <View>
-                  <Text style={styles.username}>
-                    {other?.username || otherUid}
-                  </Text>
-                  <Text style={styles.subtitle}>
-                    {item.lastMessage || "No messages yet"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
+            </TouchableOpacity>
+          );
+        }}
+      />
     </View>
   );
 }
 
-// -----------------------------
-// STYLES
-// -----------------------------
 const styles = StyleSheet.create({
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 12 },
-  searchInput: {
+  searchBox: {
     borderWidth: 1,
     borderColor: "#ccc",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 10,
-    padding: 10,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    borderBottomWidth: 0.3,
+    borderBottomWidth: 0.4,
     borderColor: "#ddd",
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-    backgroundColor: "#ccc",
-  },
+  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
   username: { fontSize: 16, fontWeight: "700" },
-  subtitle: { color: "#777", fontSize: 13, marginTop: 2 },
-
-  chatBtn: {
-    backgroundColor: "#0095f6",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  chatBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
+  lastMsg: { color: "#777" },
 });

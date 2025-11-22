@@ -1,4 +1,3 @@
-
 import {
   addDoc,
   collection,
@@ -11,42 +10,30 @@ import { auth, db } from "./firebase";
 
 /**
  * Tạo hoặc lấy chat giữa currentUser và otherUid.
- * Trả về chatId hoặc null nếu chưa đăng nhập.
+ * Cho phép chat với chính mình: participants = [uid]
  */
 export async function createOrGetChat(otherUid: string): Promise<string | null> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) return null;
+  const current = auth.currentUser;
+  if (!current) return null;
 
-  const currentUid = currentUser.uid;
+  const currentUid = current.uid;
 
-  // 1. Tìm xem đã có chat giữa 2 người chưa
+  // Self-chat => participants chỉ có 1 uid
+  const participants =
+    currentUid === otherUid
+      ? [currentUid]
+      : [currentUid, otherUid].sort();
+
+  // Kiểm tra đã có chat chưa
   const chatsRef = collection(db, "chats");
-  const q = query(
-    chatsRef,
-    where("participants", "array-contains", currentUid)
-  );
-
+  const q = query(chatsRef, where("participants", "==", participants));
   const snap = await getDocs(q);
 
-  let existingId: string | null = null;
+  if (!snap.empty) return snap.docs[0].id;
 
-  snap.forEach((docSnap) => {
-    const data = docSnap.data() as { participants?: string[] };
-    const participants = data.participants ?? [];
-    if (
-      participants.includes(currentUid) &&
-      participants.includes(otherUid) &&
-      participants.length === 2
-    ) {
-      existingId = docSnap.id;
-    }
-  });
-
-  if (existingId) return existingId;
-
-  // 2. Nếu chưa có thì tạo mới
+  // Chưa có → tạo mới
   const newChat = await addDoc(chatsRef, {
-    participants: [currentUid, otherUid],
+    participants,
     createdAt: serverTimestamp(),
     lastMessage: "",
     lastMessageAt: serverTimestamp(),

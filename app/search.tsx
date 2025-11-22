@@ -38,26 +38,40 @@ export default function SearchScreen() {
       return;
     }
 
-    const delay = setTimeout(() => searchUsers(text.trim()), 350);
+    const delay = setTimeout(() => searchUsers(text.trim().toLowerCase()), 350);
     return () => clearTimeout(delay);
   }, [text]);
 
   const searchUsers = async (searchText: string) => {
     const ref = collection(db, "users");
-    const q = query(
+
+    // ---- Search by USERNAME ----
+    const qUsername = query(
       ref,
       orderBy("username"),
-      startAt(searchText.toLowerCase()),
-      endAt(searchText.toLowerCase() + "\uf8ff")
+      startAt(searchText),
+      endAt(searchText + "\uf8ff")
     );
 
-    const snap = await getDocs(q);
-    setUsers(
-      snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<User, "id">),
-      }))
+    const snap1 = await getDocs(qUsername);
+
+    // ---- Search by NAME ----
+    const qName = query(
+      ref,
+      orderBy("name"),
+      startAt(searchText),
+      endAt(searchText + "\uf8ff")
     );
+
+    const snap2 = await getDocs(qName);
+
+    // Merge 2 kết quả, tránh duplicate
+    const map = new Map<string, User>();
+
+    snap1.docs.forEach((d) => map.set(d.id, { id: d.id, ...(d.data() as any) }));
+    snap2.docs.forEach((d) => map.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+    setUsers([...map.values()]);
   };
 
   const openChat = async (userId: string) => {
@@ -67,8 +81,9 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: "#fff" }]}>
+
       <TextInput
-        placeholder="Search username..."
+        placeholder="Search username or name..."
         style={styles.input}
         value={text}
         onChangeText={setText}
@@ -79,14 +94,13 @@ export default function SearchScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            
             {/* Avatar */}
             <Image
               source={{ uri: item.image || "https://placekitten.com/200/200" }}
               style={styles.avatar}
             />
 
-            {/* Info (bấm vào mở profile) */}
+            {/* Info (bấm vào → mở profile) */}
             <TouchableOpacity
               style={{ flex: 1 }}
               onPress={() =>
@@ -107,7 +121,6 @@ export default function SearchScreen() {
             >
               <Text style={styles.chatBtnText}>Chat</Text>
             </TouchableOpacity>
-
           </View>
         )}
       />
