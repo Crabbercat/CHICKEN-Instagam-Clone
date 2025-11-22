@@ -47,18 +47,13 @@ export default function UserProfile(): React.ReactElement {
   const itemSize = Math.floor((screenW - spacing * (numColumns - 1)) / numColumns);
 
   const renderItem = ({ item }: { item: PostItem }) => {
-    const url = item.mediaUrl || item.image || item.photo || item.url;
-    const creation = item.creation ?? item.createdAt ?? '';
     return (
       <Pressable
-        onPress={() => {
-          // navigate to tmp post page passing mediaUrl and creation as params
-          router.push({ pathname: '/tmp/post', params: { mediaUrl: url ?? '', creation: String(creation), id: item.id } });
-        }}
+        onPress={() => router.push(`/tmp/post/${item.id}`)}
         style={{ width: itemSize, height: itemSize, marginRight: spacing, marginBottom: spacing }}
       >
-        {url ? (
-          <Image source={{ uri: url }} style={{ width: itemSize, height: itemSize }} />
+        {item.mediaUrl ? (
+          <Image source={{ uri: item.mediaUrl }} style={{ width: itemSize, height: itemSize }} />
         ) : (
           <View style={{ width: itemSize, height: itemSize, backgroundColor: '#eee' }} />
         )}

@@ -98,10 +98,7 @@ export default function EditProfile(): React.ReactElement {
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Name" />
 
       <Text style={styles.label}>Bio</Text>
-      <TextInput style={[styles.input, { height: 80 }]} value={bio} onChangeText={setBio} placeholder="Bio" multiline />
-
-      <Text style={styles.label}>Image URL</Text>
-      <TextInput style={styles.input} value={image} onChangeText={setImage} placeholder="Image URL" />
+      <TextInput style={[styles.input, { height: 80 }]} value={bio} onChangeText={setBio} placeholder="Bio" multiline />  
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -127,6 +124,7 @@ const styles = StyleSheet.create({
   avatar: { width: 80, height: 80, borderRadius: 40, marginRight: 12, backgroundColor: '#eee' },
   avatarButton: { backgroundColor: '#0095f6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
   avatarButtonText: { color: '#fff', fontWeight: '700' },
+  helperText: { fontSize: 12, color: '#555', marginTop: 6 },
   button: { marginTop: 16, backgroundColor: '#0095f6', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   buttonDisabled: { backgroundColor: '#9bd3ff' },
   buttonText: { color: '#fff', fontWeight: '700' },
