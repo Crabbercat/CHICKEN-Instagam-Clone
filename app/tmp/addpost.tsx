@@ -11,6 +11,8 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";   // <-- Firebase config của bạn
+import { auth } from "../../lib/firebase";  // <-- Firebase config của bạn
+import { useRouter } from "expo-router";
 
 // Helper convert blob → data URI (base64)
 const blobToDataURI = (blob: Blob): Promise<string> =>
@@ -25,7 +27,7 @@ export default function CreatePost() {
   const [caption, setCaption] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-
+  const router = useRouter();
   // 🔹 Pick image
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -99,12 +101,14 @@ export default function CreatePost() {
         likesCount: 0,
         creation: serverTimestamp(),
         mediaUrl,
-        userId: "NGP2F3Qu7MeafNbfrFl4qGW1LCs1", // TODO: lấy user login
+        userId: auth.currentUser?.uid,
+
       });
 
       Alert.alert("Post published!");
       setCaption("");
       setImage(null);
+      router.replace("/tmp/home");
 
     } catch (error) {
       Alert.alert("Error", String(error));
@@ -115,14 +119,6 @@ export default function CreatePost() {
 
   return (
     <View style={{ padding: 16, backgroundColor: "white", flex: 1 }}>
-      {/* Pick Image */}
-      <Pressable
-        onPress={pickImage}
-        style={{ backgroundColor: "#3b82f6", padding: 12, borderRadius: 8, justifyContent: "center", alignItems: "center" }}
-      >
-        <Text style={{ color: "white", fontWeight: "600"}}>Pick Image</Text>
-      </Pressable>
-
       {/* Preview */}
       {image && (
         <Image
@@ -138,6 +134,7 @@ export default function CreatePost() {
       )}
 
       {/* Caption */}
+      {image && (
       <TextInput
         value={caption}
         onChangeText={setCaption}
@@ -149,20 +146,43 @@ export default function CreatePost() {
           borderRadius: 8,
         }}
       />
+      )}
+        {/* Pick Image */}
+         {/* Row Buttons */}
+<View style={{ flexDirection: "row", marginTop: 20, gap: 12 }}>
+  
+  {/* Pick Image */}
+    <Pressable
+      onPress={pickImage}
+      style={{
+        flex: 1,
+        backgroundColor: "#3b82f6",
+        padding: 12,
+        borderRadius: 8,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ color: "white", fontWeight: "600" }}>Pick Image</Text>
+      </Pressable>
 
       {/* Share */}
       <Pressable
         onPress={publishPost}
         style={{
-          marginTop: 20,
+          flex: 1,
           backgroundColor: "#3b82f6",
-          padding: 14,
+          padding: 12,
           borderRadius: 8,
+          justifyContent: "center",
           alignItems: "center",
         }}
       >
         <Text style={{ color: "white", fontWeight: "600" }}>Share</Text>
       </Pressable>
+
+    </View>
+
 
       {uploading && (
         <ActivityIndicator size="large" color="blue" style={{ marginTop: 20 }} />

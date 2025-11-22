@@ -27,7 +27,7 @@ export default function LoginPage(): React.ReactElement {
   };
 
   useEffect(() => {
-    if (user) router.replace('/');
+    if (user) router.replace('/tmp/home');
   }, [user, router]);
 
   const isDisabled = !(identifier && password);
