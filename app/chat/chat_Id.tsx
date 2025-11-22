@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { db, auth } from "../../lib/firebase";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc} from "firebase/firestore";
-
+import { addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { auth, db } from "../../lib/firebase";
 type Message = {
   id: string;
   text: string;
@@ -15,8 +14,8 @@ export default function ChatScreen() {
   const { chatId } = useLocalSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
-  const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
   useEffect(() => {
     const ref = collection(db, "chats", chatId as string, "messages");
     const q = query(ref, orderBy("createdAt", "asc"));

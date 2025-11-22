@@ -3,7 +3,6 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, Image, StyleSheet } 
 import { db } from "../lib/firebase";
 import { collection, query, orderBy, startAt, endAt, getDocs } from "firebase/firestore";
 import { useRouter } from "expo-router";
-
 type User = {
   id: string;
   name?: string;
