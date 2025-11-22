@@ -12,6 +12,8 @@ import {
   toggleFollowUser,
 } from '../../redux/userSlice';
 
+import { createOrGetChat } from "../../lib/chat";  
+
 export default function UserProfile(): React.ReactElement {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -19,7 +21,6 @@ export default function UserProfile(): React.ReactElement {
   const { user: authUser, loading: authLoading } = useSelector((s: RootState) => s.auth);
   const { profile, posts, loading, error, isFollowing, followLoading, followError } = useSelector((s: RootState) => s.user);
 
-  // Allow opening `/user/profile?uid=...` otherwise show current user
   const uid = typeof params?.uid === 'string' ? params.uid : authUser?.uid;
 
   useEffect(() => {
@@ -39,6 +40,14 @@ export default function UserProfile(): React.ReactElement {
   const handleFollowToggle = () => {
     if (!authUser?.uid || !uid || followLoading) return;
     dispatch(toggleFollowUser({ viewerUid: authUser.uid, targetUid: uid, shouldFollow: !isFollowing }));
+  };
+
+  const handleChatPress = async () => {
+    if (!uid) return;
+    const chatId = await createOrGetChat(uid);
+    if (chatId) {
+      router.push(`/chat/${chatId}`);
+    }
   };
 
   const numColumns = 3;
@@ -97,6 +106,14 @@ export default function UserProfile(): React.ReactElement {
                     {followLoading ? 'Please wait…' : isFollowing ? 'Unfollow' : 'Follow'}
                   </Text>
                 </Pressable>
+
+                <Pressable
+                  style={styles.messageButton}
+                  onPress={handleChatPress}
+                >
+                  <Text style={styles.messageText}>Nhắn tin</Text>
+                </Pressable>
+
                 {followError ? <Text style={styles.followError}>{followError}</Text> : null}
               </>
             ) : null}
@@ -110,10 +127,12 @@ export default function UserProfile(): React.ReactElement {
             contentContainerStyle={{ padding: 2, paddingBottom: 90 }}
             ListEmptyComponent={() => (
               <View style={{ padding: 20 }}>
-                <Text style={{ textAlign: 'center', color: '#666' }}>{error ? error : 'No posts yet.'}</Text>
+                <Text style={{ textAlign: 'center', color: '#666' }}>
+                  {error ? error : 'No posts yet.'}
+                </Text>
               </View>
             )}
-            ListFooterComponent={() => (
+            ListFooterComponent={() =>
               isCurrent ? (
                 <View style={{ padding: 16 }}>
                   <Pressable
@@ -129,11 +148,13 @@ export default function UserProfile(): React.ReactElement {
                     }}
                     disabled={authLoading}
                   >
-                    <Text style={styles.logoutText}>{authLoading ? 'Logging out…' : 'Log out'}</Text>
+                    <Text style={styles.logoutText}>
+                      {authLoading ? 'Logging out…' : 'Log out'}
+                    </Text>
                   </Pressable>
                 </View>
               ) : null
-            )}
+            }
           />
         </>
       )}
@@ -153,13 +174,30 @@ const styles = StyleSheet.create({
   countLabel: { color: '#666', fontSize: 12 },
   name: { fontWeight: '600', marginTop: 6 },
   bio: { color: '#444', marginTop: 4 },
+
   editButton: { marginTop: 8, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
   editText: { fontWeight: '700' },
+
   followButton: { marginTop: 8, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#0095f6' },
   followText: { fontWeight: '700', color: '#fff' },
   followingButton: { backgroundColor: '#e5e5ea' },
   followingText: { color: '#111' },
+
+  // ⭐ STYLE NÚT NHẮN TIN
+  messageButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#34a853',
+  },
+  messageText: {
+    fontWeight: '700',
+    color: '#fff',
+  },
+
   followError: { color: '#ef4444', marginTop: 6, textAlign: 'center' },
+
   logoutButton: { marginTop: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#ef4444' },
   logoutText: { fontWeight: '700', color: '#fff' },
 });
