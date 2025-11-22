@@ -1,12 +1,13 @@
+
 import React, { useEffect, useState } from "react";
 import {
-  Text,
-  View,
-  Image,
-  TextInput,
-  Pressable,
   ActivityIndicator,
   Alert,
+  Image,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -101,7 +102,6 @@ export default function CreatePost() {
       const result = await uploadToCloudinary();
 
       if (!result.secure_url) throw new Error("Upload failed");
-
       await addDoc(collection(db, "posts"), {
         caption,
         mediaUrl: result.secure_url,

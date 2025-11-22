@@ -1,3 +1,4 @@
+
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
@@ -6,7 +7,6 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
 import { Platform } from "react-native";
-
 
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
@@ -26,6 +26,12 @@ export default function PostItem({ post }: { post: any }) {
     };
     load();
   }, []);
+
+  const openProfile = (event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
+    if (!post.userId) return;
+    router.push({ pathname: '/user/profile', params: { uid: post.userId } });
+  };
 
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>

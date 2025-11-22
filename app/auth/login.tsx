@@ -1,33 +1,52 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import type { IdentifierErrorCode } from '../../redux/authSlice';
 import { loginUser } from '../../redux/authSlice';
 import type { AppDispatch, RootState } from '../../redux/store';
 // Redux-based authentication now; direct Firebase calls moved into thunks.
 
+const identifierMessages: Record<IdentifierErrorCode, string> = {
+  'identifier/not-email': 'No account matches that email address.',
+  'identifier/not-username': 'No account matches that username.',
+  'identifier/not-phone': 'No account matches that phone number.',
+  'identifier/invalid': 'Please enter a valid email, username, or phone number.',
+  'identifier/unknown': 'We could not resolve that account identifier.',
+};
+
 export default function LoginPage(): React.ReactElement {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [identifierError, setIdentifierError] = useState('');
 
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading, error } = useSelector((s: RootState) => s.auth);
 
   const handleLogin = () => {
-    dispatch(loginUser({ email: identifier.trim(), password }));
+    setIdentifierError('');
+    dispatch(loginUser({ identifier: identifier.trim(), password }))
+      .unwrap()
+      .catch((err) => {
+        if (typeof err === 'string' && err.startsWith('identifier/')) {
+          const key = err as IdentifierErrorCode;
+          setIdentifierError(identifierMessages[key] ?? identifierMessages['identifier/unknown']);
+        }
+      });
   };
 
   useEffect(() => {
     if (user) router.replace('/tmp/home');
+
   }, [user, router]);
 
   const isDisabled = !(identifier && password);
@@ -48,6 +67,7 @@ export default function LoginPage(): React.ReactElement {
           autoCapitalize="none"
           placeholderTextColor="#999"
         />
+        {identifierError ? <Text style={styles.fieldError}>{identifierError}</Text> : null}
 
         <TextInput
           style={styles.input}
@@ -131,4 +151,5 @@ const styles = StyleSheet.create({
   bottomRow: { flexDirection: 'row', justifyContent: 'center', padding: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   bottomText: { color: '#444' },
   signup: { color: '#0095f6', fontWeight: '700' },
+  fieldError: { color: '#ef4444', fontSize: 12, marginBottom: 8 },
 });
