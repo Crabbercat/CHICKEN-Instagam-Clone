@@ -22,6 +22,7 @@ export type UserProfile = {
   image?: string;
   followersCount?: number;
   followingCount?: number;
+  phone?: string;
 };
 
 export type PostItem = {

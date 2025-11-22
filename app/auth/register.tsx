@@ -16,7 +16,8 @@ import type { AppDispatch, RootState } from '../../redux/store';
 // Firebase direct calls are handled inside Redux thunks (registerUser).
 
 export default function RegisterPage(): React.ReactElement {
-  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,11 +26,12 @@ export default function RegisterPage(): React.ReactElement {
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading, error } = useSelector((s: RootState) => s.auth);
 
-  const isDisabled = !(emailOrPhone && username && password);
+  const isDisabled = !(email && phone && username && password);
 
   const handleRegister = () => {
     dispatch(registerUser({
-      email: emailOrPhone.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       password,
       username: username.trim(),
       fullName: fullName.trim() || undefined,
@@ -47,10 +49,20 @@ export default function RegisterPage(): React.ReactElement {
 
         <TextInput
           style={styles.input}
-          placeholder="Mobile number or email"
-          value={emailOrPhone}
-          onChangeText={setEmailOrPhone}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
+          placeholderTextColor="#999"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Phone number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
           autoCapitalize="none"
           placeholderTextColor="#999"
         />
