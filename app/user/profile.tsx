@@ -2,15 +2,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { logoutUser } from '../../redux/authSlice';
 import type { AppDispatch, RootState } from '../../redux/store';
-import { fetchUserPosts, fetchUserProfile, PostItem } from '../../redux/userSlice';
+import {
+  fetchFollowStatus,
+  fetchUserPosts,
+  fetchUserProfile,
+  PostItem,
+  toggleFollowUser,
+} from '../../redux/userSlice';
 
 export default function UserProfile(): React.ReactElement {
   const router = useRouter();
   const params = useLocalSearchParams();
   const dispatch = useDispatch<AppDispatch>();
-  const authUser = useSelector((s: RootState) => s.auth.user);
-  const { profile, posts, loading, error } = useSelector((s: RootState) => s.user);
+  const { user: authUser, loading: authLoading } = useSelector((s: RootState) => s.auth);
+  const { profile, posts, loading, error, isFollowing, followLoading, followError } = useSelector((s: RootState) => s.user);
 
   // Allow opening `/user/profile?uid=...` otherwise show current user
   const uid = typeof params?.uid === 'string' ? params.uid : authUser?.uid;
@@ -21,7 +28,18 @@ export default function UserProfile(): React.ReactElement {
     dispatch(fetchUserPosts({ uid }));
   }, [uid, dispatch]);
 
+  useEffect(() => {
+    if (!uid || !authUser?.uid) return;
+    if (authUser.uid === uid) return;
+    dispatch(fetchFollowStatus({ viewerUid: authUser.uid, targetUid: uid }));
+  }, [uid, authUser?.uid, dispatch]);
+
   const isCurrent = authUser?.uid === uid;
+
+  const handleFollowToggle = () => {
+    if (!authUser?.uid || !uid || followLoading) return;
+    dispatch(toggleFollowUser({ viewerUid: authUser.uid, targetUid: uid, shouldFollow: !isFollowing }));
+  };
 
   const numColumns = 3;
   const screenW = Dimensions.get('window').width;
@@ -70,9 +88,22 @@ export default function UserProfile(): React.ReactElement {
 
           <View style={{ paddingHorizontal: 12, marginTop: 8 }}>
             {isCurrent ? (
-              <Pressable style={styles.editButton} onPress={() => router.push('/user/edit') }>
+              <Pressable style={styles.editButton} onPress={() => router.push('/user/edit')}>
                 <Text style={styles.editText}>Edit Profile</Text>
               </Pressable>
+            ) : authUser ? (
+              <>
+                <Pressable
+                  style={[styles.followButton, isFollowing ? styles.followingButton : undefined]}
+                  onPress={handleFollowToggle}
+                  disabled={followLoading}
+                >
+                  <Text style={[styles.followText, isFollowing ? styles.followingText : undefined]}>
+                    {followLoading ? 'Please wait…' : isFollowing ? 'Unfollow' : 'Follow'}
+                  </Text>
+                </Pressable>
+                {followError ? <Text style={styles.followError}>{followError}</Text> : null}
+              </>
             ) : null}
           </View>
 
@@ -86,6 +117,27 @@ export default function UserProfile(): React.ReactElement {
               <View style={{ padding: 20 }}>
                 <Text style={{ textAlign: 'center', color: '#666' }}>{error ? error : 'No posts yet.'}</Text>
               </View>
+            )}
+            ListFooterComponent={() => (
+              isCurrent ? (
+                <View style={{ padding: 16 }}>
+                  <Pressable
+                    style={styles.logoutButton}
+                    onPress={async () => {
+                      if (authLoading) return;
+                      try {
+                        await dispatch(logoutUser()).unwrap();
+                        router.replace('/auth/login');
+                      } catch (err) {
+                        console.warn('Logout failed', err);
+                      }
+                    }}
+                    disabled={authLoading}
+                  >
+                    <Text style={styles.logoutText}>{authLoading ? 'Logging out…' : 'Log out'}</Text>
+                  </Pressable>
+                </View>
+              ) : null
             )}
           />
         </>
@@ -108,4 +160,11 @@ const styles = StyleSheet.create({
   bio: { color: '#444', marginTop: 4 },
   editButton: { marginTop: 8, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
   editText: { fontWeight: '700' },
+  followButton: { marginTop: 8, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#0095f6' },
+  followText: { fontWeight: '700', color: '#fff' },
+  followingButton: { backgroundColor: '#e5e5ea' },
+  followingText: { color: '#111' },
+  followError: { color: '#ef4444', marginTop: 6, textAlign: 'center' },
+  logoutButton: { marginTop: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#ef4444' },
+  logoutText: { fontWeight: '700', color: '#fff' },
 });

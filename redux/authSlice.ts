@@ -61,6 +61,7 @@ export const registerUser = createAsyncThunk<
       name: fullName || '',
       username: uname,
       email: email.trim(),
+      bio: '',
       image: 'default',
       followingCount: 0,
       followersCount: 0,

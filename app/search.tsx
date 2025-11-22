@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
-import { db } from "../lib/firebase";
-import { collection, query, orderBy, startAt, endAt, getDocs } from "firebase/firestore";
 import { useRouter } from "expo-router";
+import { collection, endAt, getDocs, orderBy, query, startAt } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { db } from "../lib/firebase";
 
 type User = {
   id: string;
@@ -47,7 +47,7 @@ export default function SearchScreen() {
         renderItem={({ item }: { item: User }) => (
           <TouchableOpacity
             style={styles.user}
-            onPress={() => router.push(`/chat/${item.id}`)}
+            onPress={() => router.push({ pathname: '/user/profile', params: { uid: item.id } })}
           >
             <Image
               source={{ uri: item.image || 'https://placekitten.com/200/200' }}  // Thêm URL ảnh người dùng hoặc ảnh mặc định

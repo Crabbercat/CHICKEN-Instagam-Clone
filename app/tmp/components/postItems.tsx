@@ -1,9 +1,9 @@
-import { View, Text, Image, StyleSheet, Pressable } from "react-native";
-import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { GestureResponderEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
-import { useRouter } from "expo-router";
 
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
@@ -18,15 +18,21 @@ export default function PostItem({ post }: { post: any }) {
     loadUser();
   }, [post.userId]);
 
+  const openProfile = (event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
+    if (!post.userId) return;
+    router.push({ pathname: '/user/profile', params: { uid: post.userId } });
+  };
+
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>
       <View style={styles.post}>
 
         {/* USER INFO */}
-        <View style={styles.row}>
+        <Pressable style={styles.row} onPress={openProfile}>
           <Image source={{ uri: user.image ?? "" }} style={styles.avatar} />
-          <Text style={styles.username}>{user.username}</Text>
-        </View>
+          <Text style={styles.username}>{user.username ?? 'User'}</Text>
+        </Pressable>
 
         {/* IMAGE */}
         <Image source={{ uri: post.mediaUrl }} style={styles.image} />
