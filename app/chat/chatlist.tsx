@@ -33,14 +33,14 @@ type UserData = {
   image?: string;
 };
 
-// ===== TIME FORMAT =====
+//TIME FORMAT
 function formatTime(ts: any) {
   if (!ts) return "";
   const date = ts.toDate();
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// ===== COMPONENT =====
+//COMPONENT
 export default function ChatList() {
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
@@ -48,7 +48,7 @@ export default function ChatList() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [users, setUsers] = useState<Record<string, UserData>>({});
 
-  // ==== LOAD CHAT LIST ====
+  //LOAD CHAT LIST
   useEffect(() => {
     if (!currentUid) return;
 
@@ -66,7 +66,7 @@ export default function ChatList() {
     return () => unsub();
   }, []);
 
-  // ==== LOAD USERS ====
+  //LOAD USERS
   useEffect(() => {
     const loadUser = async (uid: string) => {
       if (users[uid]) return;
