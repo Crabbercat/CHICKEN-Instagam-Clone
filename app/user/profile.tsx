@@ -1,16 +1,16 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import React, { useEffect } from 'react';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser } from '../../redux/authSlice';
 import type { AppDispatch, RootState } from '../../redux/store';
 import {
-    fetchFollowStatus,
-    fetchUserPosts,
-    fetchUserProfile,
-    PostItem,
-    toggleFollowUser,
+  fetchFollowStatus,
+  fetchUserPosts,
+  fetchUserProfile,
+  PostItem,
+  toggleFollowUser,
 } from '../../redux/userSlice';
 
 import { createOrGetChat } from "../../lib/chat";
@@ -23,22 +23,47 @@ type GridPostProps = {
 };
 
 function GridPost({ item, size, spacing, onOpen }: GridPostProps): React.ReactElement {
-  const player = item.isVideo && item.mediaUrl
-    ? useVideoPlayer(item.mediaUrl, (playerInstance) => {
-        playerInstance.loop = true;
-        playerInstance.pause();
-      })
-    : null;
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    if (item.isVideo && item.mediaUrl) {
+      setGenerating(true);
+      VideoThumbnails.getThumbnailAsync(item.mediaUrl, { time: 1000 })
+        .then((res) => {
+          if (mounted) setThumb(res.uri);
+        })
+        .catch(() => {
+          if (mounted) setThumb(null);
+        })
+        .finally(() => {
+          if (mounted) setGenerating(false);
+        });
+    } else {
+      setThumb(null);
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [item.isVideo, item.mediaUrl]);
+
+  const previewUri = item.isVideo ? thumb : item.mediaUrl;
 
   return (
     <Pressable onPress={onOpen} style={{ width: size, height: size, marginRight: spacing, marginBottom: spacing }}>
-      {item.isVideo && player ? (
-        <VideoView player={player} style={{ width: size, height: size, borderRadius: 4 }} contentFit="cover" />
-      ) : item.mediaUrl ? (
-        <Image source={{ uri: item.mediaUrl }} style={{ width: size, height: size }} />
+      {previewUri ? (
+        <Image source={{ uri: previewUri }} style={{ width: size, height: size }} />
       ) : (
-        <View style={{ width: size, height: size, backgroundColor: '#eee' }} />
+        <View style={{ width: size, height: size, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#999', fontSize: 12 }}>{generating ? 'Loading…' : 'No preview'}</Text>
+        </View>
       )}
+      {item.isVideo ? (
+        <View style={styles.playBadge}>
+          <Text style={styles.playBadgeText}>▶</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -220,6 +245,19 @@ const styles = StyleSheet.create({
   },
 
   followError: { color: '#ef4444', marginTop: 6, textAlign: 'center' },
+
+  playBadge: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playBadgeText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   logoutButton: { marginTop: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#ef4444' },
   logoutText: { fontWeight: '700', color: '#fff' },
