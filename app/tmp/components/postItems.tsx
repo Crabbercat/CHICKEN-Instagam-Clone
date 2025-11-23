@@ -7,8 +7,6 @@ import { Alert, GestureResponderEvent, Image, Pressable, StyleSheet, Text, View 
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
 
-
-
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
   const [user, setUser] = useState<any>({});
@@ -67,8 +65,6 @@ const openMenu = (post: any) => {
     ]
   );
 };
-
-
 
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>

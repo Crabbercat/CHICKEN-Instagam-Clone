@@ -9,14 +9,22 @@ export default function BottomBar(): React.ReactElement {
 
   const segments = useSegments();
   // activeSegment corresponds to the second segment for /tmp/<page>
-  const activeSegment = (segments.slice(0)[1] ?? segments.slice(0)[0]) ?? '';
+  let key = segments[segments.length - 1] ?? "";
+
+  // nếu đang ở trang chat hoặc chat detail
+  if (segments[0] === "chat") {
+    key = "message";
+  }
+
+  const activeSegment = key;
+
 
   const items = useMemo(
     () => [
       { key: 'home', label: 'Home', route: '/tmp/home', activeKey: 'home', iconActive: 'home', iconInactive: 'home-outline' },
       { key: 'search', label: 'Search', route: '/search', activeKey: 'search', iconActive: 'search', iconInactive: 'search-outline' },
       { key: 'addpost', label: 'Add', route: '/tmp/addpost', activeKey: 'addpost', iconActive: 'add-circle', iconInactive: 'add-circle-outline' },
-      { key: 'message', label: 'Message', route: '/tmp/message', activeKey: 'message', iconActive: 'chatbubble', iconInactive: 'chatbubble-outline' },
+      { key: 'message', label: 'Message', route: '/chat/chatlist', activeKey: 'message', iconActive: 'chatbubble', iconInactive: 'chatbubble-outline' },
       { key: 'profile', label: 'Profile', route: '/user/profile', activeKey: 'profile', iconActive: 'person', iconInactive: 'person-outline' },
     ],
     []
