@@ -1,5 +1,15 @@
 import { useRouter } from "expo-router";
-import { collection, endAt, getDocs, orderBy, query, startAt } from "firebase/firestore";
+import {
+  collection,
+  endAt,
+  getDocs,
+  orderBy,
+  query,
+  startAt,
+  where,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -30,7 +40,7 @@ export default function SearchScreen() {
       setUsers([]);
       return;
     }
-    const delay = setTimeout(() => searchUsers(text), 500);
+    const delay = setTimeout(() => searchUsers(text), 400);
     return () => clearTimeout(delay);
   }, [text]);
 
@@ -54,6 +64,41 @@ export default function SearchScreen() {
     setUsers(mapped);
   };
 
+  // -----------------------------
+  // ⭐ TẠO / MỞ CHAT
+  // -----------------------------
+  const startChat = async (targetUid: string) => {
+    if (targetUid === currentUid) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", currentUid)
+    );
+
+    const snap = await getDocs(q);
+
+    let foundChatId = null;
+
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.participants.includes(targetUid)) {
+        foundChatId = docSnap.id;
+      }
+    });
+
+    if (foundChatId) {
+      router.push(`/chat/${foundChatId}`);
+      return;
+    }
+
+    const newChatRef = await addDoc(collection(db, "chats"), {
+      participants: [currentUid, targetUid],
+      createdAt: serverTimestamp(),
+    });
+
+    router.push(`/chat/${newChatRef.id}`);
+  };
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -67,23 +112,43 @@ export default function SearchScreen() {
         data={users}
         keyExtractor={(item) => item.uid}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.user}
-            onPress={() => router.push(`/chat/${item.uid}`)}
-          >
-            <Image
-              source={{
-                uri: item.image || "https://i.imgur.com/7yUvePI.png",
-              }}
-              style={styles.avatar}
-            />
-            <View>
-              <Text style={styles.username}>
-                {item.uid === currentUid ? "You" : item.username}
-              </Text>
-              <Text style={{ color: "#777" }}>{item.name}</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.user}>
+            
+            {/* ⭐ Bấm vào user → MỞ PROFILE DẠNG CŨ */}
+            <TouchableOpacity
+              style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
+              onPress={() =>
+                router.push({
+                  pathname: "/user/profile",
+                  params: { uid: item.uid },
+                })
+              }
+            >
+              <Image
+                source={{
+                  uri: item.image || "https://i.imgur.com/7yUvePI.png",
+                }}
+                style={styles.avatar}
+              />
+              <View>
+                <Text style={styles.username}>
+                  {item.uid === currentUid ? "You" : item.username}
+                </Text>
+                <Text style={{ color: "#777" }}>{item.name}</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Nút Chat */}
+            {item.uid !== currentUid && (
+              <TouchableOpacity
+                style={styles.chatBtn}
+                onPress={() => startChat(item.uid)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Chat</Text>
+              </TouchableOpacity>
+            )}
+
+          </View>
         )}
       />
     </View>
@@ -110,9 +175,16 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: "#ccc",
     borderRadius: 30,
+    marginRight: 10,
   },
   username: {
     fontWeight: "700",
     fontSize: 16,
+  },
+  chatBtn: {
+    backgroundColor: "#0095f6",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
 });
