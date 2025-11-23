@@ -79,7 +79,7 @@ const openMenu = (post: any) => {
             style={styles.avatar}
           />
           <Text style={styles.username}>{user.username}</Text>
-          {/* 3 CHẤM */}
+         
       
         </View>   
 
@@ -95,6 +95,13 @@ const openMenu = (post: any) => {
             style={{ width: "100%", height: 300, borderRadius: 10 }}
           />
         )}
+        
+         {/* TIME ADDED HERE */}
+        <Text style={styles.time}>
+          {post.creation?.seconds
+            ? new Date(post.creation.seconds * 1000).toLocaleString()
+            : ""}
+        </Text>
 
         <Text style={styles.caption}>{post.caption}</Text>
 
@@ -135,4 +142,10 @@ const styles = StyleSheet.create({
   username: { fontSize: 16, fontWeight: "700" },
   action: { marginRight: 20, fontSize: 16, fontWeight: "600" },
   caption: { marginTop: 10, fontSize: 16 },
+  time: {
+  marginTop: 6,
+  color: "#666",
+  fontSize: 13,
+},
+
 });
