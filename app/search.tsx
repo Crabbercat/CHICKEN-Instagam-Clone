@@ -64,9 +64,7 @@ export default function SearchScreen() {
     setUsers(mapped);
   };
 
-  // -----------------------------
-  // ⭐ TẠO / MỞ CHAT
-  // -----------------------------
+  //TẠO / MỞ CHAT
   const startChat = async (targetUid: string) => {
     if (targetUid === currentUid) return;
 
