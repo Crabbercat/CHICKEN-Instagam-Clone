@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser } from '../../redux/authSlice';
@@ -12,7 +13,60 @@ import {
   toggleFollowUser,
 } from '../../redux/userSlice';
 
-import { createOrGetChat } from "../../lib/chat";  
+import { createOrGetChat } from "../../lib/chat";
+
+type GridPostProps = {
+  item: PostItem;
+  size: number;
+  spacing: number;
+  onOpen: () => void;
+};
+
+function GridPost({ item, size, spacing, onOpen }: GridPostProps): React.ReactElement {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    if (item.isVideo && item.mediaUrl) {
+      setGenerating(true);
+      VideoThumbnails.getThumbnailAsync(item.mediaUrl, { time: 1000 })
+        .then((res) => {
+          if (mounted) setThumb(res.uri);
+        })
+        .catch(() => {
+          if (mounted) setThumb(null);
+        })
+        .finally(() => {
+          if (mounted) setGenerating(false);
+        });
+    } else {
+      setThumb(null);
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [item.isVideo, item.mediaUrl]);
+
+  const previewUri = item.isVideo ? thumb : item.mediaUrl;
+
+  return (
+    <Pressable onPress={onOpen} style={{ width: size, height: size, marginRight: spacing, marginBottom: spacing }}>
+      {previewUri ? (
+        <Image source={{ uri: previewUri }} style={{ width: size, height: size }} />
+      ) : (
+        <View style={{ width: size, height: size, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#999', fontSize: 12 }}>{generating ? 'Loading…' : 'No preview'}</Text>
+        </View>
+      )}
+      {item.isVideo ? (
+        <View style={styles.playBadge}>
+          <Text style={styles.playBadgeText}>▶</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function UserProfile(): React.ReactElement {
   const router = useRouter();
@@ -55,20 +109,14 @@ export default function UserProfile(): React.ReactElement {
   const spacing = 2;
   const itemSize = Math.floor((screenW - spacing * (numColumns - 1)) / numColumns);
 
-  const renderItem = ({ item }: { item: PostItem }) => {
-    return (
-      <Pressable
-        onPress={() => router.push(`/tmp/post/${item.id}`)}
-        style={{ width: itemSize, height: itemSize, marginRight: spacing, marginBottom: spacing }}
-      >
-        {item.mediaUrl ? (
-          <Image source={{ uri: item.mediaUrl }} style={{ width: itemSize, height: itemSize }} />
-        ) : (
-          <View style={{ width: itemSize, height: itemSize, backgroundColor: '#eee' }} />
-        )}
-      </Pressable>
-    );
-  };
+  const renderItem = ({ item }: { item: PostItem }) => (
+    <GridPost
+      item={item}
+      size={itemSize}
+      spacing={spacing}
+      onOpen={() => router.push(`/tmp/post/${item.id}`)}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -197,6 +245,19 @@ const styles = StyleSheet.create({
   },
 
   followError: { color: '#ef4444', marginTop: 6, textAlign: 'center' },
+
+  playBadge: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playBadgeText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   logoutButton: { marginTop: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#ef4444' },
   logoutText: { fontWeight: '700', color: '#fff' },

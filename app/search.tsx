@@ -6,6 +6,9 @@ import {
   orderBy,
   query,
   startAt,
+  where,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -19,8 +22,9 @@ import {
 } from "react-native";
 import { db } from "../lib/firebase";
 import { createOrGetChat } from "../lib/chat";
+
 type User = {
-  id: string;
+  uid: string;
   name?: string;
   username?: string;
   image?: string;
@@ -30,59 +34,74 @@ export default function SearchScreen() {
   const [text, setText] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const router = useRouter();
+  const currentUid = auth.currentUser?.uid;
 
   useEffect(() => {
     if (!text.trim()) {
       setUsers([]);
       return;
     }
-
-    const delay = setTimeout(() => searchUsers(text.trim().toLowerCase()), 350);
+    const delay = setTimeout(() => searchUsers(text), 400);
     return () => clearTimeout(delay);
   }, [text]);
 
   const searchUsers = async (searchText: string) => {
     const ref = collection(db, "users");
 
-    // ---- Search by USERNAME ----
-    const qUsername = query(
+    const q = query(
       ref,
       orderBy("username"),
       startAt(searchText),
       endAt(searchText + "\uf8ff")
     );
 
-    const snap1 = await getDocs(qUsername);
+    const querySnapshot = await getDocs(q);
 
-    // ---- Search by NAME ----
-    const qName = query(
-      ref,
-      orderBy("name"),
-      startAt(searchText),
-      endAt(searchText + "\uf8ff")
-    );
+    const mapped = querySnapshot.docs.map((d) => ({
+      uid: d.id,
+      ...(d.data() as Omit<User, "uid">),
+    }));
 
-    const snap2 = await getDocs(qName);
-
-    // Merge 2 kết quả, tránh duplicate
-    const map = new Map<string, User>();
-
-    snap1.docs.forEach((d) => map.set(d.id, { id: d.id, ...(d.data() as any) }));
-    snap2.docs.forEach((d) => map.set(d.id, { id: d.id, ...(d.data() as any) }));
-
-    setUsers([...map.values()]);
+    setUsers(mapped);
   };
 
-  const openChat = async (userId: string) => {
-    const chatId = await createOrGetChat(userId);
-    if (chatId) router.push(`/chat/${chatId}`);
+  //TẠO / MỞ CHAT
+  const startChat = async (targetUid: string) => {
+    if (targetUid === currentUid) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", currentUid)
+    );
+
+    const snap = await getDocs(q);
+
+    let foundChatId = null;
+
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.participants.includes(targetUid)) {
+        foundChatId = docSnap.id;
+      }
+    });
+
+    if (foundChatId) {
+      router.push(`/chat/${foundChatId}`);
+      return;
+    }
+
+    const newChatRef = await addDoc(collection(db, "chats"), {
+      participants: [currentUid, targetUid],
+      createdAt: serverTimestamp(),
+    });
+
+    router.push(`/chat/${newChatRef.id}`);
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: "#fff" }]}>
-
+    <View style={styles.container}>
       <TextInput
-        placeholder="Search username or name..."
+        placeholder="Search name or username..."
         style={styles.input}
         value={text}
         onChangeText={setText}
@@ -90,36 +109,44 @@ export default function SearchScreen() {
 
       <FlatList
         data={users}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.uid}
         renderItem={({ item }) => (
-          <View style={styles.row}>
-            {/* Avatar */}
-            <Image
-              source={{ uri: item.image || "https://placekitten.com/200/200" }}
-              style={styles.avatar}
-            />
-
-            {/* Info (bấm vào → mở profile) */}
+          <View style={styles.user}>
+            
+            {/* ⭐ Bấm vào user → MỞ PROFILE DẠNG CŨ */}
             <TouchableOpacity
-              style={{ flex: 1 }}
+              style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
               onPress={() =>
                 router.push({
                   pathname: "/user/profile",
-                  params: { uid: item.id },
+                  params: { uid: item.uid },
                 })
               }
             >
-              <Text style={styles.username}>{item.username}</Text>
-              <Text style={styles.name}>{item.name || "No name"}</Text>
+              <Image
+                source={{
+                  uri: item.image || "https://i.imgur.com/7yUvePI.png",
+                }}
+                style={styles.avatar}
+              />
+              <View>
+                <Text style={styles.username}>
+                  {item.uid === currentUid ? "You" : item.username}
+                </Text>
+                <Text style={{ color: "#777" }}>{item.name}</Text>
+              </View>
             </TouchableOpacity>
 
-            {/* Chat Button */}
-            <TouchableOpacity
-              style={styles.chatBtn}
-              onPress={() => openChat(item.id)}
-            >
-              <Text style={styles.chatBtnText}>Chat</Text>
-            </TouchableOpacity>
+            {/* Nút Chat */}
+            {item.uid !== currentUid && (
+              <TouchableOpacity
+                style={styles.chatBtn}
+                onPress={() => startChat(item.uid)}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Chat</Text>
+              </TouchableOpacity>
+            )}
+
           </View>
         )}
       />
@@ -128,51 +155,35 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, flex: 1 },
-
+  container: { padding: 16, flex: 1, backgroundColor: "white" },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 12,
   },
-
-  row: {
+  user: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    borderBottomWidth: 0.3,
-    borderColor: "#eee",
+    gap: 12,
   },
-
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 14,
+    width: 48,
+    height: 48,
     backgroundColor: "#ccc",
+    borderRadius: 30,
+    marginRight: 10,
   },
-
   username: {
+    fontWeight: "700",
     fontSize: 16,
-    fontWeight: "600",
   },
-
-  name: {
-    color: "#666",
-    fontSize: 13,
-  },
-
   chatBtn: {
     backgroundColor: "#0095f6",
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 8,
-  },
-
-  chatBtnText: {
-    color: "#fff",
-    fontWeight: "600",
+    borderRadius: 10,
   },
 });

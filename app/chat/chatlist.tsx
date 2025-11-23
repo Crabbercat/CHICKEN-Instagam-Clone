@@ -11,38 +11,44 @@ import {
 import { useEffect, useState } from "react";
 import {
   FlatList,
-  Image,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { auth, db } from "../../lib/firebase";
 
+// ===== TYPES =====
 type Chat = {
   id: string;
-  participants?: string[];
+  participants: string[];
   lastMessage?: string;
   lastMessageAt?: any;
 };
 
-type User = {
-  id: string;
-  username?: string;
+type UserData = {
   name?: string;
+  username?: string;
   image?: string;
 };
 
+//TIME FORMAT
+function formatTime(ts: any) {
+  if (!ts) return "";
+  const date = ts.toDate();
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+//COMPONENT
 export default function ChatList() {
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
 
   const [chats, setChats] = useState<Chat[]>([]);
-  const [users, setUsers] = useState<Record<string, User>>({});
-  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<Record<string, UserData>>({});
 
-  // Load danh sách chat
+  //LOAD CHAT LIST
   useEffect(() => {
     if (!currentUid) return;
 
@@ -53,95 +59,73 @@ export default function ChatList() {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      setChats(
-        snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
-      );
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
+      setChats(list);
     });
 
     return () => unsub();
-  }, [currentUid]);
+  }, []);
 
-  // Load thông tin user còn lại
+  //LOAD USERS
   useEffect(() => {
-    chats.forEach(async (chat) => {
-      // FIX self-chat
-      const otherUid =
-        chat.participants?.length === 1
-          ? currentUid
-          : chat.participants?.find((u) => u !== currentUid);
-
-      if (otherUid && !users[otherUid]) {
-        const snap = await getDoc(doc(db, "users", otherUid));
-        if (snap.exists()) {
-          setUsers((prev) => ({
-            ...prev,
-            [otherUid]: { id: otherUid, ...(snap.data() as any) },
-          }));
-        }
+    const loadUser = async (uid: string) => {
+      if (users[uid]) return;
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        setUsers((prev) => ({ ...prev, [uid]: snap.data() as UserData }));
       }
+    };
+
+    chats.forEach((chat) => {
+      const otherUid =
+        chat.participants.length === 1
+          ? currentUid
+          : chat.participants.find((u) => u !== currentUid);
+
+      if (otherUid) loadUser(otherUid);
     });
   }, [chats]);
 
-  // Filter ChatList theo search
-  const filtered = chats.filter((chat) => {
-    const otherUid =
-      chat.participants?.length === 1
-        ? currentUid
-        : chat.participants?.find((u) => u !== currentUid);
-
-    const user = otherUid ? users[otherUid] : null;
-    if (!user) return false;
-
-    const keyword = search.toLowerCase();
-
-    return (
-      user.username?.toLowerCase().includes(keyword) ||
-      user.name?.toLowerCase().includes(keyword)
-    );
-  });
-
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff", padding: 12 }}>
-      {/* Search */}
-      <TextInput
-        placeholder="Search name or username..."
-        style={styles.searchBox}
-        value={search}
-        onChangeText={setSearch}
-      />
+    <View style={styles.container}>
+      <Text style={styles.title}>Messages</Text>
 
       <FlatList
-        data={filtered}
+        data={chats}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const otherUid =
-            item.participants?.length === 1
+            item.participants.length === 1
               ? currentUid
-              : item.participants?.find((u) => u !== currentUid);
+              : item.participants.find((u) => u !== currentUid);
 
-          const user = otherUid ? users[otherUid] : null;
-          if (!user) return null;
+          const u = users[otherUid!] || {};
 
           return (
             <TouchableOpacity
               style={styles.row}
               onPress={() => router.push(`/chat/${item.id}`)}
             >
+              {/* Avatar */}
               <Image
                 source={{
-                  uri: user.image || "https://placekitten.com/200/200",
+                  uri: u.image || "https://i.imgur.com/7yUvePI.png",
                 }}
                 style={styles.avatar}
               />
 
-              <View>
-                <Text style={styles.username}>
-                  {otherUid === currentUid ? "You" : user.username}
-                </Text>
-                <Text style={styles.lastMsg}>
-                  {item.lastMessage || "No messages yet"}
+              {/* Name + last message */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.username}>{u.username || "User"}</Text>
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                  {item.lastMessage || "No messages"}
                 </Text>
               </View>
+
+              {/* Time */}
+              <Text style={styles.time}>
+                {item.lastMessageAt ? formatTime(item.lastMessageAt) : ""}
+              </Text>
             </TouchableOpacity>
           );
         }}
@@ -150,23 +134,24 @@ export default function ChatList() {
   );
 }
 
+// ===== STYLES =====
 const styles = StyleSheet.create({
-  searchBox: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginBottom: 14,
-  },
+  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
+  title: { fontSize: 28, fontWeight: "700", marginBottom: 20 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    borderBottomWidth: 0.4,
-    borderColor: "#ddd",
+    borderBottomWidth: 1,
+    borderColor: "#eee",
   },
-  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
-  username: { fontSize: 16, fontWeight: "700" },
-  lastMsg: { color: "#777" },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 50,
+    marginRight: 12,
+  },
+  username: { fontSize: 17, fontWeight: "700" },
+  lastMessage: { fontSize: 14, color: "#777", marginTop: 2 },
+  time: { fontSize: 12, color: "#888", marginLeft: 10 },
 });

@@ -10,8 +10,7 @@ export default function BottomBar(): React.ReactElement {
   const segments = useSegments();
   // activeSegment corresponds to the second segment for /tmp/<page>
   let key = segments[segments.length - 1] ?? "";
-
-  // nếu đang ở trang chat hoặc chat detail
+  
   if (segments[0] === "chat") {
     key = "message";
   }

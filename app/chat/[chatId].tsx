@@ -46,15 +46,16 @@ export default function ChatDetail() {
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
+      // auto scroll
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
 
-    return () => unsub();
+    return unsub;
   }, [chatId]);
 
-  // Load partner info
+  // Load the other user's info
   useEffect(() => {
     const loadPartner = async () => {
       const chatSnap = await getDoc(doc(db, "chats", chatId));
@@ -62,11 +63,13 @@ export default function ChatDetail() {
 
       const participants = chatSnap.data().participants;
 
-      // FIX SELF CHAT
-      const otherUid =
-        participants.length === 1
-          ? currentUid
-          : participants.find((u: string) => u !== currentUid);
+      // ----- FIX CHÍNH: tìm user khác mình -----
+      let otherUid = participants.find((u: string) => u !== currentUid);
+
+      // Trường hợp hiếm (chat 1 người tự tạo → chỉ có 1 UID trong chat)
+      if (!otherUid) {
+        otherUid = currentUid;
+      }
 
       const userSnap = await getDoc(doc(db, "users", otherUid));
       if (userSnap.exists()) {
@@ -80,7 +83,6 @@ export default function ChatDetail() {
     loadPartner();
   }, [chatId]);
 
-  // Send message
   const sendMessage = async () => {
     if (!text.trim()) return;
 
@@ -95,10 +97,10 @@ export default function ChatDetail() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingBottom: 40 }}
+      style={{ flex: 1, paddingBottom: 60 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={[styles.container, { paddingBottom: 40 }]}>
+      <View style={[styles.container]}>
         
         {/* HEADER */}
         <View style={styles.header}>
@@ -113,8 +115,13 @@ export default function ChatDetail() {
               }}
               style={styles.headerAvatar}
             />
+
             <Text style={styles.headerName}>
-              {otherUser?.username || "You"}
+              {otherUser
+                ? otherUser.id === currentUid
+                  ? "You"
+                  : otherUser.username || otherUser.name || "Unknown"
+                : "Loading..."}
             </Text>
           </View>
         </View>
@@ -199,7 +206,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#ccc",
     backgroundColor: "#fff",
-    zIndex: 10,
   },
   input: {
     flex: 1,
