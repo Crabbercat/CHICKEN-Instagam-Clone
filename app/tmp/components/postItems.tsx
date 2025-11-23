@@ -1,12 +1,11 @@
 
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
+import { VideoView, useVideoPlayer } from "expo-video";
+import { deleteDoc, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, GestureResponderEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
-import { Platform } from "react-native";
 
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
@@ -27,6 +26,45 @@ export default function PostItem({ post }: { post: any }) {
     load();
   }, []);
 
+  const openProfile = (event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
+    if (!post.userId) return;
+    router.push({ pathname: '/user/profile', params: { uid: post.userId } });
+  };
+const confirmDelete = (postId: string) => {
+  Alert.alert(
+    "Xác nhận",
+    "Bạn có chắc muốn xóa bài đăng này?",
+    [
+      {
+        text: "Yes",
+        style: "destructive",
+        onPress: () => deletePost(postId),
+      },
+      { text: "Cancel", style: "cancel" }
+    ]
+  );
+};
+
+const deletePost = async (postId: string) => {
+  await deleteDoc(doc(db, "posts", postId));
+  Alert.alert("Đã xóa bài đăng!");
+};
+
+const openMenu = (post: any) => {
+  Alert.alert(
+    "Tùy chọn bài đăng",
+    "",
+    [
+      {
+        text: "Xóa bài đăng",
+        style: "destructive",
+        onPress: () => confirmDelete(post.id),
+      },
+      { text: "Hủy", style: "cancel" }
+    ]
+  );
+};
 
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>
@@ -41,7 +79,9 @@ export default function PostItem({ post }: { post: any }) {
             style={styles.avatar}
           />
           <Text style={styles.username}>{user.username}</Text>
-        </View>
+         
+      
+        </View>   
 
         {post.isVideo ? (
           <VideoView
@@ -55,6 +95,13 @@ export default function PostItem({ post }: { post: any }) {
             style={{ width: "100%", height: 300, borderRadius: 10 }}
           />
         )}
+        
+         {/* TIME ADDED HERE */}
+        <Text style={styles.time}>
+          {post.creation?.seconds
+            ? new Date(post.creation.seconds * 1000).toLocaleString()
+            : ""}
+        </Text>
 
         <Text style={styles.caption}>{post.caption}</Text>
 
@@ -95,4 +142,10 @@ const styles = StyleSheet.create({
   username: { fontSize: 16, fontWeight: "700" },
   action: { marginRight: 20, fontSize: 16, fontWeight: "600" },
   caption: { marginTop: 10, fontSize: 16 },
+  time: {
+  marginTop: 6,
+  color: "#666",
+  fontSize: 13,
+},
+
 });

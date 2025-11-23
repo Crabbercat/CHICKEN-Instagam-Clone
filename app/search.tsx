@@ -20,7 +20,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { db, auth } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { createOrGetChat } from "../lib/chat";
 
 type User = {
   uid: string;
