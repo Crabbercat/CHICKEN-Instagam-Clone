@@ -1,19 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect } from 'react';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser } from '../../redux/authSlice';
 import type { AppDispatch, RootState } from '../../redux/store';
 import {
-  fetchFollowStatus,
-  fetchUserPosts,
-  fetchUserProfile,
-  PostItem,
-  toggleFollowUser,
+    fetchFollowStatus,
+    fetchUserPosts,
+    fetchUserProfile,
+    PostItem,
+    toggleFollowUser,
 } from '../../redux/userSlice';
 
-import { createOrGetChat } from "../../lib/chat";  
+import { createOrGetChat } from "../../lib/chat";
 
 type GridPostProps = {
   item: PostItem;
