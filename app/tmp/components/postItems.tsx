@@ -1,13 +1,12 @@
 
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
+import { VideoView, useVideoPlayer } from "expo-video";
+import { deleteDoc, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, GestureResponderEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
-import { Platform } from "react-native";
-import { GestureResponderEvent } from "react-native";
+
 
 
 export default function PostItem({ post }: { post: any }) {
@@ -34,6 +33,42 @@ export default function PostItem({ post }: { post: any }) {
     if (!post.userId) return;
     router.push({ pathname: '/user/profile', params: { uid: post.userId } });
   };
+const confirmDelete = (postId: string) => {
+  Alert.alert(
+    "Xác nhận",
+    "Bạn có chắc muốn xóa bài đăng này?",
+    [
+      {
+        text: "Yes",
+        style: "destructive",
+        onPress: () => deletePost(postId),
+      },
+      { text: "Cancel", style: "cancel" }
+    ]
+  );
+};
+
+const deletePost = async (postId: string) => {
+  await deleteDoc(doc(db, "posts", postId));
+  Alert.alert("Đã xóa bài đăng!");
+};
+
+const openMenu = (post: any) => {
+  Alert.alert(
+    "Tùy chọn bài đăng",
+    "",
+    [
+      {
+        text: "Xóa bài đăng",
+        style: "destructive",
+        onPress: () => confirmDelete(post.id),
+      },
+      { text: "Hủy", style: "cancel" }
+    ]
+  );
+};
+
+
 
   return (
     <Pressable onPress={() => router.push(`/tmp/post/${post.id}`)}>
@@ -48,7 +83,9 @@ export default function PostItem({ post }: { post: any }) {
             style={styles.avatar}
           />
           <Text style={styles.username}>{user.username}</Text>
-        </View>
+          {/* 3 CHẤM */}
+      
+        </View>   
 
         {post.isVideo ? (
           <VideoView
