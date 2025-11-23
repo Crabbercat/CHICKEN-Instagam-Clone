@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser } from '../../redux/authSlice';
@@ -13,6 +14,34 @@ import {
 } from '../../redux/userSlice';
 
 import { createOrGetChat } from "../../lib/chat";  
+
+type GridPostProps = {
+  item: PostItem;
+  size: number;
+  spacing: number;
+  onOpen: () => void;
+};
+
+function GridPost({ item, size, spacing, onOpen }: GridPostProps): React.ReactElement {
+  const player = item.isVideo && item.mediaUrl
+    ? useVideoPlayer(item.mediaUrl, (playerInstance) => {
+        playerInstance.loop = true;
+        playerInstance.pause();
+      })
+    : null;
+
+  return (
+    <Pressable onPress={onOpen} style={{ width: size, height: size, marginRight: spacing, marginBottom: spacing }}>
+      {item.isVideo && player ? (
+        <VideoView player={player} style={{ width: size, height: size, borderRadius: 4 }} contentFit="cover" />
+      ) : item.mediaUrl ? (
+        <Image source={{ uri: item.mediaUrl }} style={{ width: size, height: size }} />
+      ) : (
+        <View style={{ width: size, height: size, backgroundColor: '#eee' }} />
+      )}
+    </Pressable>
+  );
+}
 
 export default function UserProfile(): React.ReactElement {
   const router = useRouter();
@@ -55,20 +84,14 @@ export default function UserProfile(): React.ReactElement {
   const spacing = 2;
   const itemSize = Math.floor((screenW - spacing * (numColumns - 1)) / numColumns);
 
-  const renderItem = ({ item }: { item: PostItem }) => {
-    return (
-      <Pressable
-        onPress={() => router.push(`/tmp/post/${item.id}`)}
-        style={{ width: itemSize, height: itemSize, marginRight: spacing, marginBottom: spacing }}
-      >
-        {item.mediaUrl ? (
-          <Image source={{ uri: item.mediaUrl }} style={{ width: itemSize, height: itemSize }} />
-        ) : (
-          <View style={{ width: itemSize, height: itemSize, backgroundColor: '#eee' }} />
-        )}
-      </Pressable>
-    );
-  };
+  const renderItem = ({ item }: { item: PostItem }) => (
+    <GridPost
+      item={item}
+      size={itemSize}
+      spacing={spacing}
+      onOpen={() => router.push(`/tmp/post/${item.id}`)}
+    />
+  );
 
   return (
     <View style={styles.container}>
