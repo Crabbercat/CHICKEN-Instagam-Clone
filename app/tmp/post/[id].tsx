@@ -1,10 +1,11 @@
-import { View, Text, Image, StyleSheet, Pressable, ScrollView } from "react-native";
+import { View, Text, Image, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { doc, getDoc, collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
+import { doc, deleteDoc, getDoc, collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../../../lib/firebase";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { toggleLike } from "../interation/like";
+import { parseTime } from "../../../lib/parseTime";
 
 export default function PostDetail() {
   const { id } = useLocalSearchParams();
@@ -13,14 +14,50 @@ export default function PostDetail() {
   const [post, setPost] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
-  const [userCache, setUserCache] = useState<any>({});
+ const [userCache, setUserCache] = useState<Record<string, any>>({});
+ const [videoReady, setVideoReady] = useState(false);
 
-  // 🔥 KHỞI TẠO PLAYER MỘT LẦN – TRÁNH LỖI
-  const player = useVideoPlayer(null, () => {
-    // callback khi video load xong
-  });
 
-  // ---------------------- LOAD POST ----------------------
+  // KHỞI TẠO PLAYER — tránh lỗi AbortError
+  const player = useVideoPlayer(null, () => {});
+
+  // ========================== DELETE POST ===========================
+
+  const deletePost = async () => {
+    try {
+      await deleteDoc(doc(db, "posts", String(id)));
+      Alert.alert("Đã xóa bài đăng!");
+      router.back();
+    } catch (err) {
+      console.log(err);
+      Alert.alert("Lỗi xoá bài đăng!");
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc muốn xóa bài đăng này?",
+      [
+        { text: "Yes", style: "destructive", onPress: deletePost },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const openMenu = () => {
+    Alert.alert(
+      "Tùy chọn",
+      "",
+      [
+        { text: "Xóa bài đăng", style: "destructive", onPress: confirmDelete },
+        { text: "Hủy", style: "cancel" }
+      ]
+    );
+  };
+
+  // ========================== LOAD POST ===========================
+
   useEffect(() => {
     const loadPost = async () => {
       const ref = doc(db, "posts", String(id));
@@ -36,18 +73,23 @@ export default function PostDetail() {
       if (u.exists()) setUser(u.data());
 
       // setup video
-      if (p.isVideo && p.mediaUrl) {
+      if (p.isVideo && p.mediaUrl  &&
+      typeof p.mediaUrl === "string" &&
+      p.mediaUrl.trim() !== "") {
+        setVideoReady(false);
         setTimeout(() => {
-          player.replace(p.mediaUrl); // tránh conflict
+          player.replace(p.mediaUrl);
           player.loop = true;
-        }, 100); // Delay nhỏ giúp tránh AbortError
+          setVideoReady(true); 
+        }, 100);
       }
     };
 
     loadPost();
   }, [id]);
 
-  // ---------------------- LOAD COMMENTS ----------------------
+  // ========================== LOAD COMMENTS ===========================
+
   useEffect(() => {
     if (!id) return;
 
@@ -57,37 +99,48 @@ export default function PostDetail() {
     );
 
     const unsub = onSnapshot(q, async (snap) => {
-      const list: any[] = [];
-      const cache = { ...userCache };
+      const newComments: any[] = [];
 
-      for (const d of snap.docs) {
-        const data = d.data();
+      setUserCache((prev: Record<string, any>) => {
+        const cache = { ...prev };
 
-        // lấy user nếu chưa có
-        if (!cache[data.userId]) {
-          const u = await getDoc(doc(db, "users", data.userId));
-          if (u.exists()) cache[data.userId] = u.data();
-        }
+        snap.docs.forEach(async (d) => {
+          const data = d.data();
 
-        list.push({
-          id: d.id,
-          ...data,
+          if (!cache[data.userId]) {
+            const u = await getDoc(doc(db, "users", data.userId));
+            if (u.exists()) cache[data.userId] = u.data();
+          }
+
+          newComments.push({
+            id: d.id,
+            ...data,
+          });
         });
-      }
 
-      setUserCache(cache);
-      setComments(list);
+        setComments(newComments);
+        return cache;
+      });
     });
 
     return () => unsub();
   }, [id]);
 
-  if (!post || !user) return <Text>Loading...</Text>;
+  // ========================== LOADING ===========================
+
+  if (!post || !user)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+
+  // ========================== RENDER ===========================
 
   return (
     <ScrollView style={styles.container}>
 
-      {/* 🔙 BACK BUTTON — nằm riêng một dòng */}
+      {/* Back button */}
       <View style={{ marginBottom: 10 }}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={{ fontSize: 26 }}>←</Text>
@@ -97,35 +150,47 @@ export default function PostDetail() {
       {/* HEADER USER */}
       <View style={styles.row}>
         <Image
-        source={{
-          uri: user?.image || "https://i.pravatar.cc/150?img=1",
-        }}
-        style={styles.avatar}
-      />
+          source={{
+            uri: user?.image || "https://i.pravatar.cc/150?img=1",
+          }}
+          style={styles.avatar}
+        />
         <Text style={styles.username}>{user.username}</Text>
+
+        {/* ⭐ NÚT 3 CHẤM */}
+        {auth.currentUser?.uid === post.userId && (
+          <Pressable
+            onPress={openMenu}
+            style={{ marginLeft: "auto", padding: 10 }}
+          >
+            <Text style={{ fontSize: 26 }}>⋯</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* MEDIA */}
-      {post.isVideo ? (
+    {post.isVideo ? (
+      videoReady ? (
         <VideoView
+          key={post.mediaUrl}
           style={styles.media}
           player={player}
           nativeControls
         />
       ) : (
-        <Image
-      source={{
-        uri: post.mediaUrl,
-      }}
-      style={styles.media}
-    />
-      )}
+        <View style={[styles.media, {justifyContent: "center", alignItems: "center"}]}>
+          <Text style={{color: "#fff"}}>Loading video...</Text>
+        </View>
+      )
+    ) : (
+      <Image source={{ uri: post.mediaUrl }} style={styles.media} />
+    )}
+
+
 
       {/* TIME */}
       <Text style={styles.time}>
-        {post.creation?.seconds
-          ? new Date(post.creation.seconds * 1000).toLocaleString()
-          : ""}
+        {parseTime(post.creation)?.toLocaleString() ?? ""}
       </Text>
 
       {/* CAPTION */}

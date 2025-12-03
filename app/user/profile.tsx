@@ -22,51 +22,95 @@ type GridPostProps = {
   onOpen: () => void;
 };
 
-function GridPost({ item, size, spacing, onOpen }: GridPostProps): React.ReactElement {
-  const [thumb, setThumb] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+// function GridPost({ item, size, spacing, onOpen }: GridPostProps): React.ReactElement {
+//   const [thumb, setThumb] = useState<string | null>(null);
+//   const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    if (item.isVideo && item.mediaUrl) {
-      setGenerating(true);
-      VideoThumbnails.getThumbnailAsync(item.mediaUrl, { time: 1000 })
-        .then((res) => {
-          if (mounted) setThumb(res.uri);
-        })
-        .catch(() => {
-          if (mounted) setThumb(null);
-        })
-        .finally(() => {
-          if (mounted) setGenerating(false);
-        });
-    } else {
-      setThumb(null);
-    }
-    return () => {
-      mounted = false;
-    };
-  }, [item.isVideo, item.mediaUrl]);
+//   useEffect(() => {
+//     let mounted = true;
+//     if (item.isVideo && item.mediaUrl) {
+//       setGenerating(true);
+//       VideoThumbnails.getThumbnailAsync(item.mediaUrl, { time: 1000 })
+//         .then((res) => {
+//           if (mounted) setThumb(res.uri);
+//         })
+//         .catch(() => {
+//           if (mounted) setThumb(null);
+//         })
+//         .finally(() => {
+//           if (mounted) setGenerating(false);
+//         });
+//     } else {
+//       setThumb(null);
+//     }
+//     return () => {
+//       mounted = false;
+//     };
+//   }, [item.isVideo, item.mediaUrl]);
 
-  const previewUri = item.isVideo ? thumb : item.mediaUrl;
+//   const previewUri = item.isVideo ? thumb : item.mediaUrl;
+
+//   return (
+//     <Pressable onPress={onOpen} style={{ width: size, height: size, marginRight: spacing, marginBottom: spacing }}>
+//       {previewUri ? (
+//         <Image source={{ uri: previewUri }} style={{ width: size, height: size }} />
+//       ) : (
+//         <View style={{ width: size, height: size, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' }}>
+//           <Text style={{ color: '#999', fontSize: 12 }}>{generating ? 'Loading…' : 'No preview'}</Text>
+//         </View>
+//       )}
+//       {item.isVideo ? (
+//         <View style={styles.playBadge}>
+//           <Text style={styles.playBadgeText}>▶</Text>
+//         </View>
+//       ) : null}
+//     </Pressable>
+//   );
+// }
+function GridPost({ item, size, spacing, onOpen }: GridPostProps) {
+  const previewUri = item.mediaUrl;
 
   return (
-    <Pressable onPress={onOpen} style={{ width: size, height: size, marginRight: spacing, marginBottom: spacing }}>
-      {previewUri ? (
-        <Image source={{ uri: previewUri }} style={{ width: size, height: size }} />
-      ) : (
-        <View style={{ width: size, height: size, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#999', fontSize: 12 }}>{generating ? 'Loading…' : 'No preview'}</Text>
-        </View>
-      )}
+    <Pressable
+      onPress={onOpen}
+      style={{
+        width: size,
+        height: size,
+        marginRight: spacing,
+        marginBottom: spacing,
+        position: "relative",
+      }}
+    >
+      {/* Nếu là video → dùng <video> */}
       {item.isVideo ? (
+        <video
+          src={item.mediaUrl}
+          style={{
+            width: size,
+            height: size,
+            objectFit: "cover",
+            borderRadius: 6,
+          }}
+          muted
+          playsInline
+        />
+      ) : (
+        <Image
+          source={{ uri: previewUri ?? undefined }}
+          style={{ width: size, height: size }}
+        />
+      )}
+
+      {/* Play icon */}
+      {item.isVideo && (
         <View style={styles.playBadge}>
           <Text style={styles.playBadgeText}>▶</Text>
         </View>
-      ) : null}
+      )}
     </Pressable>
   );
 }
+
 
 export default function UserProfile(): React.ReactElement {
   const router = useRouter();

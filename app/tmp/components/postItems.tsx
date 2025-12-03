@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Alert, GestureResponderEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { db } from "../../../lib/firebase";
 import { toggleLike } from "../interation/like";
+import { parseTime } from "../../../lib/parseTime";
 
 export default function PostItem({ post }: { post: any }) {
   const router = useRouter();
@@ -98,9 +99,7 @@ const openMenu = (post: any) => {
         
          {/* TIME ADDED HERE */}
         <Text style={styles.time}>
-          {post.creation?.seconds
-            ? new Date(post.creation.seconds * 1000).toLocaleString()
-            : ""}
+            {parseTime(post.creation).toLocaleString()}
         </Text>
 
         <Text style={styles.caption}>{post.caption}</Text>
