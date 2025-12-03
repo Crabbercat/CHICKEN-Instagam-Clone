@@ -9,6 +9,11 @@ import {
   where,
   addDoc,
   serverTimestamp,
+  doc,
+  updateDoc,
+  onSnapshot,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -32,10 +37,23 @@ type User = {
 export default function SearchScreen() {
   const [text, setText] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
 
-  // search sau khi user ngừng nhập
+  // 🟦 Load lịch sử tìm kiếm
+  useEffect(() => {
+    if (!currentUid) return;
+
+    const unsub = onSnapshot(doc(db, "users", currentUid), (snap) => {
+      const data = snap.data();
+      setHistory(data?.searchHistory || []);
+    });
+
+    return unsub;
+  }, []);
+
+  // 🟦 Khi user nhập -> search after delay
   useEffect(() => {
     if (!text.trim()) {
       setUsers([]);
@@ -45,7 +63,7 @@ export default function SearchScreen() {
     return () => clearTimeout(delay);
   }, [text]);
 
-  // Tìm user theo username
+  // 🟦 SEARCH FIRESTORE
   const searchUsers = async (searchText: string) => {
     const ref = collection(db, "users");
 
@@ -66,7 +84,39 @@ export default function SearchScreen() {
     setUsers(mapped);
   };
 
-  // Mở chat cũ nếu có, không thì tạo mới
+  // 🟦 Lưu lịch sử tìm kiếm
+  const saveHistory = async (user: User) => {
+    if (!currentUid) return;
+
+    const userRef = doc(db, "users", currentUid);
+
+    await updateDoc(userRef, {
+      searchHistory: arrayUnion({
+        uid: user.uid,
+        username: user.username,
+        image: user.image,
+        at: Date.now(),
+      }),
+    });
+  };
+
+  // 🟦 Xoá 1 user khỏi lịch sử
+  const removeHistoryItem = async (item: any) => {
+    if (!currentUid) return;
+
+    await updateDoc(doc(db, "users", currentUid), {
+      searchHistory: arrayRemove(item),
+    });
+  };
+
+  // 🟦 Xoá tất cả lịch sử
+  const clearHistory = async () => {
+    await updateDoc(doc(db, "users", currentUid), {
+      searchHistory: [],
+    });
+  };
+
+  // 🟦 Mở chat (giữ nguyên code bạn)
   const startChat = async (targetUid: string) => {
     if (targetUid === currentUid) return;
 
@@ -97,9 +147,11 @@ export default function SearchScreen() {
     router.push(`/chat/${newChat.id}`);
   };
 
+  const showingHistory = !text.trim();
+
   return (
     <View style={styles.container}>
-      {/* Ô nhập tìm kiếm */}
+      {/* INPUT */}
       <TextInput
         placeholder="Search name or username..."
         style={styles.input}
@@ -107,48 +159,107 @@ export default function SearchScreen() {
         onChangeText={setText}
       />
 
-      {/* Danh sách user tìm được */}
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item.uid}
-        renderItem={({ item }) => (
-          <View style={styles.user}>
-            {/* Bấm vào để xem profile */}
-            <TouchableOpacity
-              style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
-              onPress={() =>
-                router.push({
-                  pathname: "/user/profile",
-                  params: { uid: item.uid },
-                })
-              }
-            >
-              <Image
-                source={{
-                  uri: item.image || "https://i.imgur.com/7yUvePI.png",
-                }}
-                style={styles.avatar}
-              />
-              <View>
-                <Text style={styles.username}>
-                  {item.uid === currentUid ? "You" : item.username}
-                </Text>
-                <Text style={{ color: "#777" }}>{item.name}</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Nút mở chat */}
-            {item.uid !== currentUid && (
-              <TouchableOpacity
-                style={styles.chatBtn}
-                onPress={() => startChat(item.uid)}
-              >
-                <Text style={{ color: "white", fontWeight: "600" }}>Chat</Text>
+      {/* 🟦 Nếu không nhập -> hiện lịch sử */}
+      {showingHistory ? (
+        <View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "700" }}>
+              Recent searches
+            </Text>
+            {history.length > 0 && (
+              <TouchableOpacity onPress={clearHistory}>
+                <Text style={{ color: "red" }}>Clear</Text>
               </TouchableOpacity>
             )}
           </View>
-        )}
-      />
+
+          <FlatList
+            data={history.sort((a, b) => b.at - a.at)}
+            keyExtractor={(item) => item.uid + item.at}
+            renderItem={({ item }) => (
+              <View style={styles.user}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flex: 1,
+                  }}
+                  onPress={() => {
+                    saveHistory(item);
+                    router.push({
+                      pathname: "/user/profile",
+                      params: { uid: item.uid },
+                    });
+                  }}
+                >
+                  <Image
+                    source={{
+                      uri: item.image || "https://i.imgur.com/7yUvePI.png",
+                    }}
+                    style={styles.avatar}
+                  />
+                  <Text style={styles.username}>{item.username}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => removeHistoryItem(item)}>
+                  <Text style={{ color: "#999", fontSize: 18 }}>×</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        </View>
+      ) : (
+        /* 🟦 Kết quả search */
+        <FlatList
+          data={users}
+          keyExtractor={(item) => item.uid}
+          renderItem={({ item }) => (
+            <View style={styles.user}>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
+                onPress={() => {
+                  saveHistory(item);
+                  router.push({
+                    pathname: "/user/profile",
+                    params: { uid: item.uid },
+                  });
+                }}
+              >
+                <Image
+                  source={{
+                    uri: item.image || "https://i.imgur.com/7yUvePI.png",
+                  }}
+                  style={styles.avatar}
+                />
+                <View>
+                  <Text style={styles.username}>
+                    {item.uid === currentUid ? "You" : item.username}
+                  </Text>
+                  <Text style={{ color: "#777" }}>{item.name}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {item.uid !== currentUid && (
+                <TouchableOpacity
+                  style={styles.chatBtn}
+                  onPress={() => {
+                    saveHistory(item);
+                    startChat(item.uid);
+                  }}
+                >
+                  <Text style={{ color: "white", fontWeight: "600" }}>Chat</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
