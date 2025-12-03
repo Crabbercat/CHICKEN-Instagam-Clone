@@ -21,7 +21,7 @@ export default function BottomBar(): React.ReactElement {
   const items = useMemo(
     () => [
       { key: 'home', label: 'Home', route: '/tmp/home', activeKey: 'home', iconActive: 'home', iconInactive: 'home-outline' },
-      { key: 'search', label: 'Search', route: '/search', activeKey: 'search', iconActive: 'search', iconInactive: 'search-outline' },
+      { key: 'search', label: 'Search', route: '/tmp/search', activeKey: 'search', iconActive: 'search', iconInactive: 'search-outline' },
       { key: 'addpost', label: 'Add', route: '/tmp/addpost', activeKey: 'addpost', iconActive: 'add-circle', iconInactive: 'add-circle-outline' },
       { key: 'message', label: 'Message', route: '/chat/chatlist', activeKey: 'message', iconActive: 'chatbubble', iconInactive: 'chatbubble-outline' },
       { key: 'profile', label: 'Profile', route: '/user/profile', activeKey: 'profile', iconActive: 'person', iconInactive: 'person-outline' },

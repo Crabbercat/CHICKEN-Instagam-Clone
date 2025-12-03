@@ -126,9 +126,7 @@ export default function ChatDetail() {
             source={{ uri: chatInfo.backgroundUrl }}
             style={styles.bgImage}
             resizeMode={
-              chatInfo?.backgroundMode === "auto"
-                ? "cover"
-                : chatInfo?.backgroundMode || "cover"
+              chatInfo?.backgroundMode === "auto" ? "cover" : chatInfo?.backgroundMode
             }
           />
         )}

@@ -20,8 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { db, auth } from "../lib/firebase";
-import { createOrGetChat } from "../lib/chat";
+import { db, auth } from "../../lib/firebase";
 
 type User = {
   uid: string;
@@ -36,6 +35,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
 
+  // search sau khi user ngừng nhập
   useEffect(() => {
     if (!text.trim()) {
       setUsers([]);
@@ -45,6 +45,7 @@ export default function SearchScreen() {
     return () => clearTimeout(delay);
   }, [text]);
 
+  // Tìm user theo username
   const searchUsers = async (searchText: string) => {
     const ref = collection(db, "users");
 
@@ -65,7 +66,7 @@ export default function SearchScreen() {
     setUsers(mapped);
   };
 
-  //TẠO / MỞ CHAT
+  // Mở chat cũ nếu có, không thì tạo mới
   const startChat = async (targetUid: string) => {
     if (targetUid === currentUid) return;
 
@@ -75,12 +76,10 @@ export default function SearchScreen() {
     );
 
     const snap = await getDocs(q);
-
     let foundChatId = null;
 
     snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.participants.includes(targetUid)) {
+      if (docSnap.data().participants.includes(targetUid)) {
         foundChatId = docSnap.id;
       }
     });
@@ -90,16 +89,17 @@ export default function SearchScreen() {
       return;
     }
 
-    const newChatRef = await addDoc(collection(db, "chats"), {
+    const newChat = await addDoc(collection(db, "chats"), {
       participants: [currentUid, targetUid],
       createdAt: serverTimestamp(),
     });
 
-    router.push(`/chat/${newChatRef.id}`);
+    router.push(`/chat/${newChat.id}`);
   };
 
   return (
     <View style={styles.container}>
+      {/* Ô nhập tìm kiếm */}
       <TextInput
         placeholder="Search name or username..."
         style={styles.input}
@@ -107,13 +107,13 @@ export default function SearchScreen() {
         onChangeText={setText}
       />
 
+      {/* Danh sách user tìm được */}
       <FlatList
         data={users}
         keyExtractor={(item) => item.uid}
         renderItem={({ item }) => (
           <View style={styles.user}>
-            
-            {/* Bấm vào user → MỞ PROFILE */}
+            {/* Bấm vào để xem profile */}
             <TouchableOpacity
               style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
               onPress={() =>
@@ -137,16 +137,15 @@ export default function SearchScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Nút Chat */}
+            {/* Nút mở chat */}
             {item.uid !== currentUid && (
               <TouchableOpacity
                 style={styles.chatBtn}
                 onPress={() => startChat(item.uid)}
               >
-                <Text style={{ color: "#fff", fontWeight: "600" }}>Chat</Text>
+                <Text style={{ color: "white", fontWeight: "600" }}>Chat</Text>
               </TouchableOpacity>
             )}
-
           </View>
         )}
       />
@@ -173,13 +172,10 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     backgroundColor: "#ccc",
-    borderRadius: 30,
+    borderRadius: 24,
     marginRight: 10,
   },
-  username: {
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  username: { fontWeight: "700", fontSize: 16 },
   chatBtn: {
     backgroundColor: "#0095f6",
     paddingHorizontal: 14,
