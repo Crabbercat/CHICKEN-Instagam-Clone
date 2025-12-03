@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View,
   Image,
+  SafeAreaView,
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { auth, db } from "../../lib/firebase";
@@ -85,11 +86,12 @@ export default function ChatDetail() {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMessages(msgs);
 
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 80);
     });
 
     return unsub;
@@ -118,121 +120,122 @@ export default function ChatDetail() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={{ flex: 1 }}>
-        
+      <View style={styles.container}>
+
         {/* Background image */}
         {chatInfo?.backgroundUrl && (
           <Image
             source={{ uri: chatInfo.backgroundUrl }}
             style={styles.bgImage}
             resizeMode={
-              chatInfo?.backgroundMode === "auto" ? "cover" : chatInfo?.backgroundMode
+              chatInfo?.backgroundMode === "auto"
+                ? "cover"
+                : chatInfo?.backgroundMode
             }
           />
         )}
 
-        {/* MAIN CONTENT */}
-        <View style={[styles.container]}>
-          
-          {/* HEADER */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.back}>{"<"}</Text>
-            </TouchableOpacity>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.back}>{"<"}</Text>
+          </TouchableOpacity>
 
-            <View style={styles.headerUser}>
-              <Image
-                source={{
-                  uri: otherUser?.image || "https://placekitten.com/200/200",
-                }}
-                style={styles.headerAvatar}
-              />
+          <View style={styles.headerUser}>
+            <Image
+              source={{
+                uri: otherUser?.image || "https://placekitten.com/200/200",
+              }}
+              style={styles.headerAvatar}
+            />
 
-              <Text style={styles.headerName}>
-                {otherUser
-                  ? otherUser.id === currentUid
-                    ? "You"
-                    : otherUser.username || otherUser.name || "Unknown"
-                  : "Loading..."}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() =>
-                router.push(`/chat/chatsettings?chatId=${chatId}`)
-              }
-            >
-              <Text style={styles.settings}>...</Text>
-            </TouchableOpacity>
+            <Text style={styles.headerName}>
+              {otherUser
+                ? otherUser.id === currentUid
+                  ? "You"
+                  : otherUser.username || otherUser.name || "Unknown"
+                : "Loading..."}
+            </Text>
           </View>
 
-          {/* MESSAGES */}
-          <FlatList
-            ref={flatListRef}
-            style={{ flex: 1 }}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: 12 }}
-            renderItem={({ item, index }) => {
-              const isMe = item.senderId === currentUid;
+          <TouchableOpacity
+            onPress={() => router.push(`/chat/chatsettings?chatId=${chatId}`)}
+          >
+            <Text style={styles.settings}>...</Text>
+          </TouchableOpacity>
+        </View>
 
-              const nextMsg = messages[index + 1];
-              const isLastOfGroup =
-                !nextMsg || nextMsg.senderId !== item.senderId;
+        {/* MESSAGES */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            padding: 12,
+            paddingBottom: 120, // tăng padding để tránh bị BottomBar che
+          }}
+          renderItem={({ item, index }) => {
+            const isMe = item.senderId === currentUid;
 
-              return (
+            const nextMsg = messages[index + 1];
+            const isLastOfGroup =
+              !nextMsg || nextMsg.senderId !== item.senderId;
+
+            return (
+              <View
+                style={[
+                  styles.msgWrap,
+                  { alignItems: isMe ? "flex-end" : "flex-start" },
+                ]}
+              >
                 <View
                   style={[
-                    styles.msgWrap,
-                    { alignItems: isMe ? "flex-end" : "flex-start" },
+                    styles.msgBubble,
+                    isMe ? styles.myMsg : styles.theirMsg,
                   ]}
                 >
-                  {/* Bubble */}
-                  <View
-                    style={[
-                      styles.msgBubble,
-                      isMe ? styles.myMsg : styles.theirMsg,
-                    ]}
-                  >
-                    <Text style={{ color: isMe ? "#fff" : "#000" }}>
-                      {item.text}
-                    </Text>
-                  </View>
-
-                  {/* Time only for last message in group */}
-                  {isLastOfGroup && (
-                    <Text style={styles.msgTime}>
-                      {formatTime(item.createdAt)}
-                    </Text>
-                  )}
+                  <Text style={{ color: isMe ? "#fff" : "#000" }}>
+                    {item.text}
+                  </Text>
                 </View>
-              );
-            }}
+
+                {isLastOfGroup && (
+                  <Text style={styles.msgTime}>
+                    {formatTime(item.createdAt)}
+                  </Text>
+                )}
+              </View>
+            );
+          }}
+        />
+
+        {/* INPUT BAR */}
+        <SafeAreaView style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="Message..."
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={sendMessage}
+            blurOnSubmit={false}
+            returnKeyType="send"
           />
+          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
 
-          {/* INPUT */}
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Message..."
-              value={text}
-              onChangeText={setText}
-              onSubmitEditing={sendMessage}
-              blurOnSubmit={false}
-              returnKeyType="send"
-            />
-            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-              <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
-            </TouchableOpacity>
-          </View>
-
-        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { 
+    flex: 1,
+    paddingBottom: 70,
+  },
+
   bgImage: {
     position: "absolute",
     width: "100%",
@@ -243,14 +246,13 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
 
-  container: { flex: 1, backgroundColor: "transparent" },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     borderBottomWidth: 1,
     borderColor: "#eee",
+    backgroundColor: "rgba(255,255,255,0.8)",
   },
   back: { fontSize: 24, marginRight: 10 },
   headerUser: { flexDirection: "row", alignItems: "center", flex: 1 },
@@ -279,8 +281,10 @@ const styles = StyleSheet.create({
     padding: 10,
     borderTopWidth: 1,
     borderColor: "#ccc",
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: "white",
+    marginBottom: -5,
   },
+
   input: {
     flex: 1,
     backgroundColor: "#f1f1f1",
@@ -288,6 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
+
   sendBtn: {
     backgroundColor: "#0095f6",
     marginLeft: 8,
