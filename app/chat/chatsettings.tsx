@@ -1,109 +1,168 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  TextInput,
-} from "react-native";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../lib/firebase";
-import { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from "../../lib/firebase";
+import { uploadImageToCloudinary } from "../../lib/cloudinary";
 
 export default function ChatSettings() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const router = useRouter();
 
-  const backgrounds = [
-    "https://i.imgur.com/UY7cN6F.jpeg",
-    "https://i.imgur.com/afFC0y1.jpeg",
-    "https://i.imgur.com/Ko3E9Sj.jpeg",
-    "https://i.imgur.com/7yUvePI.png",
-  ];
+  const [backgroundUrl, setBackgroundUrl] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [customUrl, setCustomUrl] = useState("");
+  // Load background hiện tại của người kia
+  useEffect(() => {
+    if (!chatId) return;
 
-  const saveBackground = async (url: string) => {
-    await updateDoc(doc(db, "chats", chatId), {
-      backgroundUrl: url,
+    (async () => {
+      const chatSnap = await getDoc(doc(db, "chats", chatId));
+      if (!chatSnap.exists()) return;
+
+      const data = chatSnap.data();
+      const otherId = data.participants.find((x: string) => x !== auth.currentUser?.uid);
+
+      if (!otherId) return;
+
+      const userSnap = await getDoc(doc(db, "users", otherId));
+      if (userSnap.exists()) {
+        setBackgroundUrl(userSnap.data().backgroundUrl || "");
+      }
+    })();
+  }, [chatId]);
+
+  // Chọn ảnh từ máy → upload Cloudinary
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.9,
     });
-    router.back(); // Quay lại chat ngay
+
+    if (result.canceled) return;
+
+    const uri = result.assets[0].uri;
+
+    setLoading(true);
+
+    try {
+      // ⬅⬅⬅ Upload theo đúng structure bạn gửi
+      const uploadedUrl = await uploadImageToCloudinary({
+        uri,
+        fileName: "background.jpg",
+        mimeType: "image/jpeg",
+      });
+
+      setBackgroundUrl(uploadedUrl);
+    } catch (err) {
+      console.log("Upload error:", err);
+    }
+
+    setLoading(false);
+  };
+
+  // LƯU BACKGROUND VÀO CHAT DOCUMENT
+  const saveBackground = async () => {
+    if (!chatId) return;
+
+    await updateDoc(doc(db, "chats", chatId), {
+      backgroundUrl: backgroundUrl,
+    });
+
+    router.back();
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Customize Chat</Text>
-
-      {/* SECTION: QUICK BACKGROUND */}
-      <Text style={styles.sub}>Choose Background</Text>
-
-      <View style={styles.bgList}>
-        {backgrounds.map((bg) => (
-          <TouchableOpacity
-            key={bg}
-            onPress={() => saveBackground(bg)}
-            style={styles.bgItem}
-          >
-            <Image source={{ uri: bg }} style={styles.bgImage} />
-          </TouchableOpacity>
-        ))}
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.back}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Change Background</Text>
       </View>
 
-      {/* SECTION: CUSTOM URL */}
-      <Text style={[styles.sub, { marginTop: 25 }]}>Custom Background URL</Text>
+      {/* PREVIEW */}
+      <View style={styles.previewBox}>
+        {backgroundUrl ? (
+          <Image source={{ uri: backgroundUrl }} style={styles.previewImage} />
+        ) : (
+          <Text style={{ opacity: 0.5 }}>No background selected</Text>
+        )}
+      </View>
 
-      <TextInput
-        value={customUrl}
-        onChangeText={setCustomUrl}
-        placeholder="Enter image URL..."
-        style={styles.input}
-      />
+      {/* PICK BUTTON */}
+      <TouchableOpacity style={styles.btn} onPress={pickImage}>
+        <Text style={styles.btnText}>
+          {loading ? "Uploading..." : "Choose Image"}
+        </Text>
+      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.saveBtn, { opacity: customUrl ? 1 : 0.5 }]}
-        disabled={!customUrl}
-        onPress={() => saveBackground(customUrl)}
-      >
-        <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
+      {/* SAVE BUTTON */}
+      <TouchableOpacity style={styles.saveBtn} onPress={saveBackground}>
+        <Text style={styles.saveText}>Save</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "white" },
-
-  title: { fontSize: 26, fontWeight: "700", marginBottom: 20 },
-
-  sub: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
-
-  bgList: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-
-  bgItem: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    overflow: "hidden",
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "white",
   },
-  bgImage: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  back: {
+    fontSize: 30,
+    marginRight: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  previewBox: {
+    width: "100%",
+    height: 220,
+    backgroundColor: "#f2f2f2",
+    borderRadius: 12,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  previewImage: {
     width: "100%",
     height: "100%",
   },
-
-  input: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-
-  saveBtn: {
-    backgroundColor: "#0095f6",
+  btn: {
+    backgroundColor: "#0a84ff",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
+    marginBottom: 15,
+  },
+  btnText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  saveBtn: {
+    backgroundColor: "black",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  saveText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

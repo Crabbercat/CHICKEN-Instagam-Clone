@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -10,28 +11,28 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Image,
-  SafeAreaView,
 } from "react-native";
-import { useEffect, useRef, useState } from "react";
 import { auth, db } from "../../lib/firebase";
 
-// Format time
 const formatTime = (ts: any) => {
   if (!ts) return "";
-  const date = ts.toDate();
-  const hh = date.getHours().toString().padStart(2, "0");
-  const mm = date.getMinutes().toString().padStart(2, "0");
-  return `${hh}:${mm}`;
+  const d = ts.toDate();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}`;
 };
 
 export default function ChatDetail() {
@@ -44,39 +45,37 @@ export default function ChatDetail() {
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
 
+  const [menuMsg, setMenuMsg] = useState<any>(null);
+  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState("");
+  const [replyTo, setReplyTo] = useState<any>(null);
+
   const flatListRef = useRef<any>(null);
 
   // Load chat info
   useEffect(() => {
-    const loadChatInfo = async () => {
-      const snap = await getDoc(doc(db, "chats", chatId));
+    const unsub = onSnapshot(doc(db, "chats", chatId), (snap) => {
       if (snap.exists()) setChatInfo(snap.data());
-    };
-    loadChatInfo();
+    });
+    return unsub;
   }, [chatId]);
 
   // Load partner info
   useEffect(() => {
-    const loadPartner = async () => {
-      if (!chatInfo || !chatInfo.participants) return;
+    if (!chatInfo) return;
 
-      const otherUid =
-        chatInfo.participants.find((u: string) => u !== currentUid) ||
-        currentUid;
+    const otherUid =
+      chatInfo.participants.find((u: string) => u !== currentUid) || currentUid;
 
-      const userSnap = await getDoc(doc(db, "users", otherUid));
-      if (userSnap.exists()) {
-        setOtherUser({
-          id: otherUid,
-          ...(userSnap.data() as any),
-        });
+    (async () => {
+      const u = await getDoc(doc(db, "users", otherUid));
+      if (u.exists()) {
+        setOtherUser({ id: otherUid, ...u.data() });
       }
-    };
-
-    loadPartner();
+    })();
   }, [chatInfo]);
 
-  // Load messages realtime
+  // Load messages
   useEffect(() => {
     if (!chatId) return;
 
@@ -86,25 +85,35 @@ export default function ChatDetail() {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMessages(msgs);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMessages(list);
 
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 80);
+      flatListRef.current?.scrollToEnd({ animated: true });
     });
 
     return unsub;
   }, [chatId]);
 
-  // SEND MESSAGE
   const sendMessage = async () => {
     if (!text.trim()) return;
+
+    if (editing) {
+      await updateDoc(doc(db, "chats", chatId, "messages", editingId), {
+        text,
+        edited: true,
+      });
+
+      setEditing(false);
+      setEditingId("");
+      setText("");
+      return;
+    }
 
     await addDoc(collection(db, "chats", chatId, "messages"), {
       text,
       senderId: currentUid,
       createdAt: serverTimestamp(),
+      replyTo: replyTo || null,
     });
 
     await updateDoc(doc(db, "chats", chatId), {
@@ -113,138 +122,200 @@ export default function ChatDetail() {
     });
 
     setText("");
+    setReplyTo(null);
+  };
+
+  const deleteMessage = async (id: string) => {
+    await deleteDoc(doc(db, "chats", chatId, "messages", id));
+    setMenuMsg(null);
+  };
+
+  const renderMessage = ({ item, index }: any) => {
+    const isMe = item.senderId === currentUid;
+    const next = messages[index + 1];
+    const last = !next || next.senderId !== item.senderId;
+
+    return (
+      <View style={{ marginVertical: 4 }}>
+        <View
+          style={[
+            styles.msgRow,
+            { justifyContent: isMe ? "flex-end" : "flex-start" },
+          ]}
+        >
+          <View style={{ flexDirection: isMe ? "row-reverse" : "row" }}>
+            <TouchableOpacity
+              style={[
+                styles.msgBubble,
+                isMe ? styles.myMsg : styles.theirMsg,
+              ]}
+              onLongPress={() => setMenuMsg(item)}
+            >
+              {item.replyTo && (
+                <View style={styles.replyMini}>
+                  <Text style={styles.replyMiniText} numberOfLines={1}>
+                    Reply: {item.replyTo.text}
+                  </Text>
+                </View>
+              )}
+
+              <Text style={{ color: isMe ? "#fff" : "#000" }}>
+                {item.text}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dotBtn}
+              onPress={() => setMenuMsg(item)}
+            >
+              <Text style={styles.dotText}>⋮</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+          {last && (
+            <View
+              style={{
+                width: "100%",
+                marginTop: 6,
+                marginBottom: 18,   // ⭐ nâng timestamp lên để không bị input che
+                paddingHorizontal: 10,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  opacity: 0.55,
+                  textAlign: isMe ? "right" : "left",
+                }}
+              >
+                {formatTime(item.createdAt)}
+              </Text>
+            </View>
+          )}
+      </View>
+    );
   };
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={90}
     >
-      <View style={styles.container}>
+      <ImageBackground
+        source={{ uri: chatInfo?.backgroundUrl }}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <SafeAreaView style={{ flex: 1 }}>
 
-        {/* Background image */}
-        {chatInfo?.backgroundUrl && (
-          <Image
-            source={{ uri: chatInfo.backgroundUrl }}
-            style={styles.bgImage}
-            resizeMode={
-              chatInfo?.backgroundMode === "auto"
-                ? "cover"
-                : chatInfo?.backgroundMode
-            }
-          />
-        )}
+          {/* HEADER */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.back}>{"<"}</Text>
+            </TouchableOpacity>
 
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.back}>{"<"}</Text>
-          </TouchableOpacity>
+            <View style={styles.headerUser}>
+              <Image
+                source={{
+                  uri: otherUser?.image || "https://placekitten.com/200/200",
+                }}
+                style={styles.headerAvatar}
+              />
+              <Text style={styles.headerName}>
+                {otherUser?.username || "User"}
+              </Text>
+            </View>
 
-          <View style={styles.headerUser}>
-            <Image
-              source={{
-                uri: otherUser?.image || "https://placekitten.com/200/200",
-              }}
-              style={styles.headerAvatar}
-            />
-
-            <Text style={styles.headerName}>
-              {otherUser
-                ? otherUser.id === currentUid
-                  ? "You"
-                  : otherUser.username || otherUser.name || "Unknown"
-                : "Loading..."}
-            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                router.push(`/chat/chatsettings?chatId=${chatId}`)
+              }
+            >
+              <Text style={styles.settings}>...</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            onPress={() => router.push(`/chat/chatsettings?chatId=${chatId}`)}
-          >
-            <Text style={styles.settings}>...</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* MESSAGES */}
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{
-            padding: 12,
-            paddingBottom: 120, // tăng padding để tránh bị BottomBar che
-          }}
-          renderItem={({ item, index }) => {
-            const isMe = item.senderId === currentUid;
-
-            const nextMsg = messages[index + 1];
-            const isLastOfGroup =
-              !nextMsg || nextMsg.senderId !== item.senderId;
-
-            return (
-              <View
-                style={[
-                  styles.msgWrap,
-                  { alignItems: isMe ? "flex-end" : "flex-start" },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.msgBubble,
-                    isMe ? styles.myMsg : styles.theirMsg,
-                  ]}
-                >
-                  <Text style={{ color: isMe ? "#fff" : "#000" }}>
-                    {item.text}
-                  </Text>
-                </View>
-
-                {isLastOfGroup && (
-                  <Text style={styles.msgTime}>
-                    {formatTime(item.createdAt)}
-                  </Text>
-                )}
-              </View>
-            );
-          }}
-        />
-
-        {/* INPUT BAR */}
-        <SafeAreaView style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Message..."
-            value={text}
-            onChangeText={setText}
-            onSubmitEditing={sendMessage}
-            blurOnSubmit={false}
-            returnKeyType="send"
+          {/* MESSAGE LIST */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            style={{ flex: 1 }}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{
+              padding: 12,
+              paddingBottom: 100,
+            }}
+            renderItem={renderMessage}
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-            <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
 
-      </View>
+          {/* POPUP MENU */}
+          {menuMsg && (
+            <View style={styles.menuBox}>
+              <TouchableOpacity
+                onPress={() => {
+                  setReplyTo(menuMsg);
+                  setMenuMsg(null);
+                }}
+              >
+                <Text style={styles.menuItem}>Reply</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setEditing(true);
+                  setEditingId(menuMsg.id);
+                  setText(menuMsg.text);
+                  setMenuMsg(null);
+                }}
+              >
+                <Text style={styles.menuItem}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => deleteMessage(menuMsg.id)}>
+                <Text style={[styles.menuItem, { color: "red" }]}>Delete</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setMenuMsg(null)}>
+                <Text style={styles.menuClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* REPLY PREVIEW */}
+          {replyTo && (
+            <View style={styles.replyBox}>
+              <Text style={{ fontWeight: "700" }}>Replying to:</Text>
+              <Text numberOfLines={1}>{replyTo.text}</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)}>
+                <Text style={{ color: "red", marginTop: 4 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* INPUT */}
+          <View style={styles.inputRowFixed}>
+            <TextInput
+              style={styles.input}
+              placeholder={editing ? "Editing..." : "Message..."}
+              value={text}
+              onChangeText={setText}
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+              <Text style={{ color: "#fff", fontWeight: "700" }}>
+                {editing ? "Save" : "Send"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+        </SafeAreaView>
+      </ImageBackground>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-    paddingBottom: 70,
-  },
-
-  bgImage: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    opacity: 0.25,
-    top: 0,
-    left: 0,
-    zIndex: -1,
-  },
+  container: { flex: 1 },
 
   header: {
     flexDirection: "row",
@@ -252,52 +323,124 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderColor: "#eee",
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: "white",
+    zIndex: 10,
   },
+
   back: { fontSize: 24, marginRight: 10 },
   headerUser: { flexDirection: "row", alignItems: "center", flex: 1 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   headerName: { fontSize: 17, fontWeight: "700" },
-  settings: { fontSize: 24, marginLeft: 10 },
+  settings: { fontSize: 24 },
 
-  msgWrap: { marginVertical: 4 },
+  msgRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+
   msgBubble: {
     padding: 10,
-    borderRadius: 18,
-    maxWidth: "75%",
+    borderRadius: 18,    
+    alignSelf: "flex-start",
+    maxWidth: 150,
+    flexShrink: 1,
   },
-  myMsg: { backgroundColor: "#0095f6" },
-  theirMsg: { backgroundColor: "#e5e5ea" },
+  myMsg: { 
+    backgroundColor: "#0095f6",
+    alignSelf: "flex-end",
+  },
+  theirMsg: { 
+    backgroundColor: "#e5e5ea",
+    alignSelf: "flex-start",
+  },
+
+  dotBtn: {
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  dotText: { opacity: 0.5, fontSize: 18 },
+
+  replyMini: {
+    borderLeftWidth: 3,
+    borderColor: "#ccc",
+    paddingLeft: 6,
+    marginBottom: 4,
+  },
+  replyMiniText: { fontSize: 11, opacity: 0.7 },
 
   msgTime: {
     fontSize: 11,
-    marginTop: 3,
     color: "#777",
-    alignSelf: "center",
+    marginTop: 4,
+    paddingHorizontal: 6,
   },
 
-  inputRow: {
-    flexDirection: "row",
+  replyBox: {
+    position: "absolute",
+    bottom: 110,
+    left: 0,
+    right: 0,
+    
+    backgroundColor: "#eee",
     padding: 10,
-    borderTopWidth: 1,
-    borderColor: "#ccc",
+    borderLeftWidth: 4,
+    borderColor: "#0095f6",
+    marginHorizontal: 10,
+    borderRadius: 8,
+    zIndex: 200,
+  },
+
+  menuBox: {
+    position: "absolute",
+    bottom: 150,
+    left: 20,
+    right: 20,
+    backgroundColor: "#222",
+    padding: 16,
+    borderRadius: 10,
+    zIndex: 50,
+  },
+  menuItem: {
+    fontSize: 18,
+    color: "white",
+    marginVertical: 8,
+  },
+  menuClose: {
+    textAlign: "center",
+    marginTop: 10,
+    color: "#aaa",
+  },
+
+  inputRowFixed: {
+    flexDirection: "row",
+    padding: 5,
     backgroundColor: "white",
-    marginBottom: -5,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+    alignItems: "center",
+    position: "absolute",
+    bottom: 63,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
 
   input: {
     flex: 1,
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
+    backgroundColor: "#efefef",
+    borderRadius: 24,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
   },
-
   sendBtn: {
-    backgroundColor: "#0095f6",
     marginLeft: 8,
-    paddingHorizontal: 18,
-    borderRadius: 20,
+    backgroundColor: "#0095f6",
+    paddingHorizontal: 16,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
+    alignItems: "center",
   },
 });
