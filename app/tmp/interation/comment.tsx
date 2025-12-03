@@ -13,11 +13,13 @@ export const addComment = async (
   data: {
     userId: string;
     content: string;
-    creation: any;
   }
 ) => {
   // 1. Add comment vào sub-collection
-  await addDoc(collection(db, "posts", postId, "comments"), data);
+  await addDoc(collection(db, "posts", postId, "comments"), {
+    ...data,
+    creation: serverTimestamp(),
+  });
 
   // 2. Tăng bộ đếm comment
   await updateDoc(doc(db, "posts", postId), {
