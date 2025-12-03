@@ -5,6 +5,7 @@ import { doc, getDoc, collection, query, orderBy, onSnapshot } from "firebase/fi
 import { db } from "../../../lib/firebase";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { toggleLike } from "../interation/like";
+import { parseTime } from "../../../lib/parseTime";
 
 export default function PostDetail() {
   const { id } = useLocalSearchParams();
@@ -123,11 +124,9 @@ export default function PostDetail() {
 
       {/* TIME */}
       <Text style={styles.time}>
-        {post.creation?.seconds
-          ? new Date(post.creation.seconds * 1000).toLocaleString()
-          : ""}
+          {parseTime(post.creation).toLocaleString()}
       </Text>
-
+      
       {/* CAPTION */}
       <Text style={styles.caption}>{post.caption}</Text>
 

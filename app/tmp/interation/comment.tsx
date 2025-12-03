@@ -16,12 +16,10 @@ export const addComment = async (
   }
 ) => {
   // 1. Add comment vào sub-collection
-  await addDoc(collection(db, "posts", postId, "comments"), {
+    await addDoc(collection(db, "posts", postId, "comments"), {
     ...data,
     creation: serverTimestamp(),
-  });
-
-  // 2. Tăng bộ đếm comment
+    });  // 2. Tăng bộ đếm comment
   await updateDoc(doc(db, "posts", postId), {
     commentsCount: increment(1),
   });
