@@ -125,12 +125,28 @@ export default function ChatDetail() {
     setReplyTo(null);
   };
 
-  const deleteMessage = async (id: string) => {
-    await deleteDoc(doc(db, "chats", chatId, "messages", id));
+  const deleteMessage = async (item: any) => {
+    const msgRef = doc(db, "chats", chatId, "messages", item.id);
+
+    if (item.senderId === currentUid) {
+      // Xóa hoàn toàn đối với tin nhắn của mình
+      await deleteDoc(msgRef);
+    } else {
+      // Tin nhắn người khác → chỉ xóa bên mình
+      await updateDoc(msgRef, {
+        deletedFor: item.deletedFor
+          ? Array.from(new Set([...item.deletedFor, currentUid]))  // tránh trùng
+          : [currentUid],
+      });
+    }
+
     setMenuMsg(null);
   };
 
   const renderMessage = ({ item, index }: any) => {
+    if (item.deletedFor?.includes(currentUid)) {
+      return null;
+    }
     const isMe = item.senderId === currentUid;
     const next = messages[index + 1];
     const last = !next || next.senderId !== item.senderId;
@@ -265,8 +281,10 @@ export default function ChatDetail() {
                   <Text style={styles.menuText}>Edit</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => deleteMessage(menuMsg.id)}>
-                  <Text style={styles.menuDelete}>Delete</Text>
+                <TouchableOpacity onPress={() => deleteMessage(menuMsg)}>
+                  <Text style={styles.menuDelete}>
+                    {menuMsg.senderId === currentUid ? "Delete for everyone" : "Delete"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
