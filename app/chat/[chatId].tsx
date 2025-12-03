@@ -24,7 +24,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { auth, db } from "../../lib/firebase";
 
-// Format giờ
+// Format time
 const formatTime = (ts: any) => {
   if (!ts) return "";
   const date = ts.toDate();
@@ -40,9 +40,40 @@ export default function ChatDetail() {
 
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
+  const [chatInfo, setChatInfo] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
 
   const flatListRef = useRef<any>(null);
+
+  // Load chat info
+  useEffect(() => {
+    const loadChatInfo = async () => {
+      const snap = await getDoc(doc(db, "chats", chatId));
+      if (snap.exists()) setChatInfo(snap.data());
+    };
+    loadChatInfo();
+  }, [chatId]);
+
+  // Load partner info
+  useEffect(() => {
+    const loadPartner = async () => {
+      if (!chatInfo || !chatInfo.participants) return;
+
+      const otherUid =
+        chatInfo.participants.find((u: string) => u !== currentUid) ||
+        currentUid;
+
+      const userSnap = await getDoc(doc(db, "users", otherUid));
+      if (userSnap.exists()) {
+        setOtherUser({
+          id: otherUid,
+          ...(userSnap.data() as any),
+        });
+      }
+    };
+
+    loadPartner();
+  }, [chatInfo]);
 
   // Load messages realtime
   useEffect(() => {
@@ -64,41 +95,16 @@ export default function ChatDetail() {
     return unsub;
   }, [chatId]);
 
-  // Load the other user's info
-  useEffect(() => {
-    const loadPartner = async () => {
-      const chatSnap = await getDoc(doc(db, "chats", chatId));
-      if (!chatSnap.exists()) return;
-
-      const participants = chatSnap.data().participants;
-
-      let otherUid = participants.find((u: string) => u !== currentUid);
-      if (!otherUid) otherUid = currentUid;
-
-      const userSnap = await getDoc(doc(db, "users", otherUid));
-      if (userSnap.exists()) {
-        setOtherUser({
-          id: otherUid,
-          ...(userSnap.data() as any),
-        });
-      }
-    };
-
-    loadPartner();
-  }, [chatId]);
-
-  // Gửi tin nhắn
+  // SEND MESSAGE
   const sendMessage = async () => {
     if (!text.trim()) return;
 
-    // 1) thêm message vào subcollection
     await addDoc(collection(db, "chats", chatId, "messages"), {
       text,
       senderId: currentUid,
       createdAt: serverTimestamp(),
     });
 
-    // cập nhật lastMessage + lastMessageAt cho ChatList
     await updateDoc(doc(db, "chats", chatId), {
       lastMessage: text,
       lastMessageAt: serverTimestamp(),
@@ -109,106 +115,137 @@ export default function ChatDetail() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingBottom: 60 }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={[styles.container]}>
+      <View style={{ flex: 1 }}>
         
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.back}>{"<"}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.headerUser}>
-            <Image
-              source={{
-                uri: otherUser?.image || "https://placekitten.com/200/200",
-              }}
-              style={styles.headerAvatar}
-            />
-
-            <Text style={styles.headerName}>
-              {otherUser
-                ? otherUser.id === currentUid
-                  ? "You"
-                  : otherUser.username || otherUser.name || "Unknown"
-                : "Loading..."}
-            </Text>
-          </View>
-        </View>
-
-        {/* MESSAGES */}
-        <FlatList
-          ref={flatListRef}
-          style={{ flex: 1 }}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 12 }}
-          renderItem={({ item, index }) => {
-            const isMe = item.senderId === currentUid;
-
-            const nextMsg = messages[index + 1];
-            const isLastOfGroup =
-              !nextMsg || nextMsg.senderId !== item.senderId;
-
-            return (
-              <View
-                style={[
-                  styles.msgWrap,
-                  { alignItems: isMe ? "flex-end" : "flex-start" },
-                ]}
-              >
-                {/* Bubble */}
-                <View
-                  style={[styles.msgBubble, isMe ? styles.myMsg : styles.theirMsg]}
-                >
-                  <Text style={{ color: isMe ? "#fff" : "#000" }}>
-                    {item.text}
-                  </Text>
-                </View>
-
-                {/* chỉ hiện khi là tin cuối nhóm */}
-                {isLastOfGroup && (
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      marginTop: 3,
-                      color: "#777",
-                      alignSelf: "center",
-                    }}
-                  >
-                    {formatTime(item.createdAt)}
-                  </Text>
-                )}
-              </View>
-            );
-          }}
-        />
-
-        {/* INPUT */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Message..."
-            value={text}
-            onChangeText={setText}
-            onSubmitEditing={sendMessage}
-            blurOnSubmit={false}
-            returnKeyType="send"
+        {/* Background image */}
+        {chatInfo?.backgroundUrl && (
+          <Image
+            source={{ uri: chatInfo.backgroundUrl }}
+            style={styles.bgImage}
+            resizeMode={
+              chatInfo?.backgroundMode === "auto"
+                ? "cover"
+                : chatInfo?.backgroundMode || "cover"
+            }
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-            <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
+        {/* MAIN CONTENT */}
+        <View style={[styles.container]}>
+          
+          {/* HEADER */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.back}>{"<"}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.headerUser}>
+              <Image
+                source={{
+                  uri: otherUser?.image || "https://placekitten.com/200/200",
+                }}
+                style={styles.headerAvatar}
+              />
+
+              <Text style={styles.headerName}>
+                {otherUser
+                  ? otherUser.id === currentUid
+                    ? "You"
+                    : otherUser.username || otherUser.name || "Unknown"
+                  : "Loading..."}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() =>
+                router.push(`/chat/chatsettings?chatId=${chatId}`)
+              }
+            >
+              <Text style={styles.settings}>...</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* MESSAGES */}
+          <FlatList
+            ref={flatListRef}
+            style={{ flex: 1 }}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 12 }}
+            renderItem={({ item, index }) => {
+              const isMe = item.senderId === currentUid;
+
+              const nextMsg = messages[index + 1];
+              const isLastOfGroup =
+                !nextMsg || nextMsg.senderId !== item.senderId;
+
+              return (
+                <View
+                  style={[
+                    styles.msgWrap,
+                    { alignItems: isMe ? "flex-end" : "flex-start" },
+                  ]}
+                >
+                  {/* Bubble */}
+                  <View
+                    style={[
+                      styles.msgBubble,
+                      isMe ? styles.myMsg : styles.theirMsg,
+                    ]}
+                  >
+                    <Text style={{ color: isMe ? "#fff" : "#000" }}>
+                      {item.text}
+                    </Text>
+                  </View>
+
+                  {/* Time only for last message in group */}
+                  {isLastOfGroup && (
+                    <Text style={styles.msgTime}>
+                      {formatTime(item.createdAt)}
+                    </Text>
+                  )}
+                </View>
+              );
+            }}
+          />
+
+          {/* INPUT */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Message..."
+              value={text}
+              onChangeText={setText}
+              onSubmitEditing={sendMessage}
+              blurOnSubmit={false}
+              returnKeyType="send"
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Send</Text>
+            </TouchableOpacity>
+          </View>
+
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  bgImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    opacity: 0.25,
+    top: 0,
+    left: 0,
+    zIndex: -1,
+  },
+
+  container: { flex: 1, backgroundColor: "transparent" },
 
   header: {
     flexDirection: "row",
@@ -218,9 +255,10 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
   },
   back: { fontSize: 24, marginRight: 10 },
-  headerUser: { flexDirection: "row", alignItems: "center" },
+  headerUser: { flexDirection: "row", alignItems: "center", flex: 1 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   headerName: { fontSize: 17, fontWeight: "700" },
+  settings: { fontSize: 24, marginLeft: 10 },
 
   msgWrap: { marginVertical: 4 },
   msgBubble: {
@@ -231,12 +269,19 @@ const styles = StyleSheet.create({
   myMsg: { backgroundColor: "#0095f6" },
   theirMsg: { backgroundColor: "#e5e5ea" },
 
+  msgTime: {
+    fontSize: 11,
+    marginTop: 3,
+    color: "#777",
+    alignSelf: "center",
+  },
+
   inputRow: {
     flexDirection: "row",
     padding: 10,
     borderTopWidth: 1,
     borderColor: "#ccc",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.8)",
   },
   input: {
     flex: 1,
