@@ -60,7 +60,7 @@ export default function ChatDetail() {
     return unsub;
   }, [chatId]);
 
-  // Load partner info
+  // Load partner
   useEffect(() => {
     if (!chatInfo) return;
 
@@ -69,9 +69,7 @@ export default function ChatDetail() {
 
     (async () => {
       const u = await getDoc(doc(db, "users", otherUid));
-      if (u.exists()) {
-        setOtherUser({ id: otherUid, ...u.data() });
-      }
+      if (u.exists()) setOtherUser({ id: otherUid, ...u.data() });
     })();
   }, [chatInfo]);
 
@@ -87,21 +85,30 @@ export default function ChatDetail() {
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setMessages(list);
-
       flatListRef.current?.scrollToEnd({ animated: true });
     });
 
     return unsub;
   }, [chatId]);
 
+  // SEND or EDIT
   const sendMessage = async () => {
     if (!text.trim()) return;
 
+    // ----------------------
+    //     EDIT LOGIC
+    // ----------------------
     if (editing) {
-      await updateDoc(doc(db, "chats", chatId, "messages", editingId), {
-        text,
-        edited: true,
-      });
+      const msgRef = doc(db, "chats", chatId, "messages", editingId);
+      const snap = await getDoc(msgRef);
+
+      // Chỉ sửa được tin nhắn của chính mình
+      if (snap.exists() && snap.data().senderId === currentUid) {
+        await updateDoc(msgRef, {
+          text,
+          edited: true,
+        });
+      }
 
       setEditing(false);
       setEditingId("");
@@ -109,6 +116,9 @@ export default function ChatDetail() {
       return;
     }
 
+    // ----------------------
+    //     SEND NEW MSG
+    // ----------------------
     await addDoc(collection(db, "chats", chatId, "messages"), {
       text,
       senderId: currentUid,
@@ -125,17 +135,16 @@ export default function ChatDetail() {
     setReplyTo(null);
   };
 
+  // DELETE logic
   const deleteMessage = async (item: any) => {
     const msgRef = doc(db, "chats", chatId, "messages", item.id);
 
     if (item.senderId === currentUid) {
-      // Xóa hoàn toàn đối với tin nhắn của mình
       await deleteDoc(msgRef);
     } else {
-      // Tin nhắn người khác → chỉ xóa bên mình
       await updateDoc(msgRef, {
         deletedFor: item.deletedFor
-          ? Array.from(new Set([...item.deletedFor, currentUid]))  // tránh trùng
+          ? Array.from(new Set([...item.deletedFor, currentUid]))
           : [currentUid],
       });
     }
@@ -144,9 +153,8 @@ export default function ChatDetail() {
   };
 
   const renderMessage = ({ item, index }: any) => {
-    if (item.deletedFor?.includes(currentUid)) {
-      return null;
-    }
+    if (item.deletedFor?.includes(currentUid)) return null;
+
     const isMe = item.senderId === currentUid;
     const next = messages[index + 1];
     const last = !next || next.senderId !== item.senderId;
@@ -188,26 +196,27 @@ export default function ChatDetail() {
             </TouchableOpacity>
           </View>
         </View>
-          {last && (
-            <View
+
+        {last && (
+          <View
+            style={{
+              width: "100%",
+              marginTop: 6,
+              marginBottom: 18,
+              paddingHorizontal: 10,
+            }}
+          >
+            <Text
               style={{
-                width: "100%",
-                marginTop: 6,
-                marginBottom: 18,   // ⭐ nâng timestamp lên để không bị input che
-                paddingHorizontal: 10,
+                fontSize: 12,
+                opacity: 0.55,
+                textAlign: isMe ? "right" : "left",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 12,
-                  opacity: 0.55,
-                  textAlign: isMe ? "right" : "left",
-                }}
-              >
-                {formatTime(item.createdAt)}
-              </Text>
-            </View>
-          )}
+              {formatTime(item.createdAt)}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -224,7 +233,6 @@ export default function ChatDetail() {
         resizeMode="cover"
       >
         <SafeAreaView style={{ flex: 1 }}>
-
           {/* HEADER */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()}>
@@ -265,25 +273,44 @@ export default function ChatDetail() {
             renderItem={renderMessage}
           />
 
-          {/* POPUP MENU */}
+          {/* MENU POPUP */}
           {menuMsg && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.menuOverlay}
               activeOpacity={1}
               onPress={() => setMenuMsg(null)}
             >
               <View style={styles.menuBox}>
-                <TouchableOpacity onPress={() => { setReplyTo(menuMsg); setMenuMsg(null); }}>
+                {/* REPLY */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setReplyTo(menuMsg);
+                    setMenuMsg(null);
+                  }}
+                >
                   <Text style={styles.menuText}>Reply</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => { setEditing(true); setEditingId(menuMsg.id); setText(menuMsg.text); setMenuMsg(null); }}>
-                  <Text style={styles.menuText}>Edit</Text>
-                </TouchableOpacity>
+                {/* EDIT — chỉ hiện nếu là tin nhắn của mình */}
+                {menuMsg.senderId === currentUid && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditing(true);
+                      setEditingId(menuMsg.id);
+                      setText(menuMsg.text);
+                      setMenuMsg(null);
+                    }}
+                  >
+                    <Text style={styles.menuText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
 
+                {/* DELETE */}
                 <TouchableOpacity onPress={() => deleteMessage(menuMsg)}>
                   <Text style={styles.menuDelete}>
-                    {menuMsg.senderId === currentUid ? "Delete for everyone" : "Delete"}
+                    {menuMsg.senderId === currentUid
+                      ? "Delete for everyone"
+                      : "Delete"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -293,34 +320,36 @@ export default function ChatDetail() {
           {/* REPLY PREVIEW */}
           {replyTo && (
             <View style={styles.replyBox}>
-              
-              {/* Hàng đầu: tiêu đề và nút X */}
-              <View style={{ 
-                flexDirection: "row", 
-                justifyContent: "space-between", 
-                alignItems: "center" 
-              }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <Text style={{ fontWeight: "700" }}>Replying to:</Text>
 
                 <TouchableOpacity onPress={() => setReplyTo(null)}>
-                  <Text style={{ 
-                    fontSize: 22, 
-                    fontWeight: "bold", 
-                    color: "#444",
-                    marginRight: 5,
-                    marginTop: -3
-                  }}>×</Text>
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: "bold",
+                      color: "#444",
+                      marginRight: 5,
+                      marginTop: -3,
+                    }}
+                  >
+                    ×
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Nội dung reply */}
-              <Text 
-                numberOfLines={1} 
+              <Text
+                numberOfLines={1}
                 style={{ marginTop: 4, opacity: 0.8 }}
               >
                 {replyTo.text}
               </Text>
-
             </View>
           )}
 
@@ -333,12 +362,13 @@ export default function ChatDetail() {
               onChangeText={setText}
             />
             <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-              <Text style={{ color: "#fff", fontWeight: "700" }}>
+              <Text
+                style={{ color: "#fff", fontWeight: "700" }}
+              >
                 {editing ? "Save" : "Send"}
               </Text>
             </TouchableOpacity>
           </View>
-
         </SafeAreaView>
       </ImageBackground>
     </KeyboardAvoidingView>
@@ -346,8 +376,6 @@ export default function ChatDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -372,16 +400,16 @@ const styles = StyleSheet.create({
 
   msgBubble: {
     padding: 10,
-    borderRadius: 18,    
+    borderRadius: 18,
     alignSelf: "flex-start",
     maxWidth: 150,
     flexShrink: 1,
   },
-  myMsg: { 
+  myMsg: {
     backgroundColor: "#0095f6",
     alignSelf: "flex-end",
   },
-  theirMsg: { 
+  theirMsg: {
     backgroundColor: "#e5e5ea",
     alignSelf: "flex-start",
   },
@@ -401,19 +429,11 @@ const styles = StyleSheet.create({
   },
   replyMiniText: { fontSize: 11, opacity: 0.7 },
 
-  msgTime: {
-    fontSize: 11,
-    color: "#777",
-    marginTop: 4,
-    paddingHorizontal: 6,
-  },
-
   replyBox: {
     position: "absolute",
     bottom: 111,
     left: 0,
     right: 0,
-    
     backgroundColor: "#eee",
     padding: 10,
     borderLeftWidth: 4,
@@ -421,7 +441,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 8,
     zIndex: 200,
-
     paddingTop: 12,
     paddingBottom: 12,
   },
@@ -435,13 +454,13 @@ const styles = StyleSheet.create({
     zIndex: 500,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.1)",   
+    backgroundColor: "rgba(0,0,0,0.1)",
   },
 
   menuBox: {
-    width: 180,                      
-    backgroundColor: "#222",           
-    borderRadius: 14,                
+    width: 180,
+    backgroundColor: "#222",
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 15,
     elevation: 4,
@@ -458,16 +477,6 @@ const styles = StyleSheet.create({
     color: "#ff4d4d",
     paddingVertical: 8,
     fontWeight: "600",
-  },
-  menuItem: {
-    fontSize: 18,
-    color: "white",
-    marginVertical: 8,
-  },
-  menuClose: {
-    textAlign: "center",
-    marginTop: 10,
-    color: "#aaa",
   },
 
   inputRowFixed: {
