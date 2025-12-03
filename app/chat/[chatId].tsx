@@ -251,45 +251,58 @@ export default function ChatDetail() {
 
           {/* POPUP MENU */}
           {menuMsg && (
-            <View style={styles.menuBox}>
-              <TouchableOpacity
-                onPress={() => {
-                  setReplyTo(menuMsg);
-                  setMenuMsg(null);
-                }}
-              >
-                <Text style={styles.menuItem}>Reply</Text>
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuOverlay}
+              activeOpacity={1}
+              onPress={() => setMenuMsg(null)}
+            >
+              <View style={styles.menuBox}>
+                <TouchableOpacity onPress={() => { setReplyTo(menuMsg); setMenuMsg(null); }}>
+                  <Text style={styles.menuText}>Reply</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => {
-                  setEditing(true);
-                  setEditingId(menuMsg.id);
-                  setText(menuMsg.text);
-                  setMenuMsg(null);
-                }}
-              >
-                <Text style={styles.menuItem}>Edit</Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setEditing(true); setEditingId(menuMsg.id); setText(menuMsg.text); setMenuMsg(null); }}>
+                  <Text style={styles.menuText}>Edit</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => deleteMessage(menuMsg.id)}>
-                <Text style={[styles.menuItem, { color: "red" }]}>Delete</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => setMenuMsg(null)}>
-                <Text style={styles.menuClose}>Close</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity onPress={() => deleteMessage(menuMsg.id)}>
+                  <Text style={styles.menuDelete}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           )}
 
           {/* REPLY PREVIEW */}
           {replyTo && (
             <View style={styles.replyBox}>
-              <Text style={{ fontWeight: "700" }}>Replying to:</Text>
-              <Text numberOfLines={1}>{replyTo.text}</Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Text style={{ color: "red", marginTop: 4 }}>Cancel</Text>
-              </TouchableOpacity>
+              
+              {/* Hàng đầu: tiêu đề và nút X */}
+              <View style={{ 
+                flexDirection: "row", 
+                justifyContent: "space-between", 
+                alignItems: "center" 
+              }}>
+                <Text style={{ fontWeight: "700" }}>Replying to:</Text>
+
+                <TouchableOpacity onPress={() => setReplyTo(null)}>
+                  <Text style={{ 
+                    fontSize: 22, 
+                    fontWeight: "bold", 
+                    color: "#444",
+                    marginRight: 5,
+                    marginTop: -3
+                  }}>×</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Nội dung reply */}
+              <Text 
+                numberOfLines={1} 
+                style={{ marginTop: 4, opacity: 0.8 }}
+              >
+                {replyTo.text}
+              </Text>
+
             </View>
           )}
 
@@ -379,7 +392,7 @@ const styles = StyleSheet.create({
 
   replyBox: {
     position: "absolute",
-    bottom: 110,
+    bottom: 111,
     left: 0,
     right: 0,
     
@@ -390,17 +403,43 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 8,
     zIndex: 200,
+
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+
+  menuOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 500,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.1)",   
   },
 
   menuBox: {
-    position: "absolute",
-    bottom: 150,
-    left: 20,
-    right: 20,
-    backgroundColor: "#222",
-    padding: 16,
-    borderRadius: 10,
-    zIndex: 50,
+    width: 180,                      
+    backgroundColor: "#222",           
+    borderRadius: 14,                
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    elevation: 4,
+  },
+
+  menuText: {
+    fontSize: 16,
+    color: "#fff",
+    paddingVertical: 8,
+  },
+
+  menuDelete: {
+    fontSize: 16,
+    color: "#ff4d4d",
+    paddingVertical: 8,
+    fontWeight: "600",
   },
   menuItem: {
     fontSize: 18,
