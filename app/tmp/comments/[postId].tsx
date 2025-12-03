@@ -18,7 +18,7 @@ type Comment = {
   id: string;
   userId: string;
   content: string;
-  creation: any;
+  creation: Date;
 };
 
 export default function CommentsScreen() {
@@ -31,6 +31,17 @@ export default function CommentsScreen() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [users, setUsers] = useState<any>({});
   const [comment, setComment] = useState("");
+
+   const timeAgo = (date: Date) => {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s trước`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m trước`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h trước`;
+    const days = Math.floor(hours / 24);
+    return `${days} ngày trước`;
+  };
 
   // Load comments
   useEffect(() => {
@@ -46,6 +57,12 @@ export default function CommentsScreen() {
       for (const d of snap.docs) {
         const data = d.data() as any;
 
+        // ensure we map Firestore Timestamp -> JS Date safely
+        const creationDate =
+          data.creation && typeof data.creation.toDate === "function"
+            ? data.creation.toDate()
+            : new Date();
+
         if (!userCache[data.userId]) {
           const uref = doc(db, "users", data.userId);
           const usnap = await getDoc(uref);
@@ -56,7 +73,7 @@ export default function CommentsScreen() {
           id: d.id,
           userId: data.userId,
           content: data.content,
-          creation: data.creation,
+          creation: creationDate, 
         });
       }
 
@@ -67,6 +84,7 @@ export default function CommentsScreen() {
     return () => unsub();
   }, [postId]);
 
+  
   // Submit comment
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -74,7 +92,6 @@ export default function CommentsScreen() {
     await addComment(String(postId), {
       userId: auth.currentUser?.uid ?? "",
       content: comment.trim(),
-      creation: new Date(),
     });
 
     setComment("");
@@ -93,6 +110,7 @@ export default function CommentsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.username}>{user?.username || "Unknown"}</Text>
           <Text>{item.content}</Text>
+          <Text style={{ color: "#777", fontSize: 12 }}>{timeAgo(item.creation)}</Text>
         </View>
       </View>
     );
