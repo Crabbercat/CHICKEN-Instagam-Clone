@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { createOrGetChat } from "../lib/chat";
 
 type User = {
@@ -113,7 +113,7 @@ export default function SearchScreen() {
         renderItem={({ item }) => (
           <View style={styles.user}>
             
-            {/* ⭐ Bấm vào user → MỞ PROFILE DẠNG CŨ */}
+            {/* Bấm vào user → MỞ PROFILE */}
             <TouchableOpacity
               style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
               onPress={() =>

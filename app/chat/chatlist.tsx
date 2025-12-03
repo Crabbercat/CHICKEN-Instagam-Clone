@@ -19,7 +19,20 @@ import {
 } from "react-native";
 import { auth, db } from "../../lib/firebase";
 
-// ===== TYPES =====
+// TIME FORMAT
+function formatTime(ts: any) {
+  if (!ts) return "";
+  const date = ts.toDate();
+
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+
+  return `${hours}:${minutes} ${ampm}`;
+}
+
 type Chat = {
   id: string;
   participants: string[];
@@ -33,14 +46,6 @@ type UserData = {
   image?: string;
 };
 
-//TIME FORMAT
-function formatTime(ts: any) {
-  if (!ts) return "";
-  const date = ts.toDate();
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-//COMPONENT
 export default function ChatList() {
   const router = useRouter();
   const currentUid = auth.currentUser?.uid;
@@ -48,7 +53,7 @@ export default function ChatList() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [users, setUsers] = useState<Record<string, UserData>>({});
 
-  //LOAD CHAT LIST
+  // LOAD CHAT LIST
   useEffect(() => {
     if (!currentUid) return;
 
@@ -66,7 +71,7 @@ export default function ChatList() {
     return () => unsub();
   }, []);
 
-  //LOAD USERS
+  // LOAD USER FOR CHAT
   useEffect(() => {
     const loadUser = async (uid: string) => {
       if (users[uid]) return;
@@ -106,7 +111,6 @@ export default function ChatList() {
               style={styles.row}
               onPress={() => router.push(`/chat/${item.id}`)}
             >
-              {/* Avatar */}
               <Image
                 source={{
                   uri: u.image || "https://i.imgur.com/7yUvePI.png",
@@ -114,15 +118,14 @@ export default function ChatList() {
                 style={styles.avatar}
               />
 
-              {/* Name + last message */}
               <View style={{ flex: 1 }}>
                 <Text style={styles.username}>{u.username || "User"}</Text>
+
                 <Text style={styles.lastMessage} numberOfLines={1}>
                   {item.lastMessage || "No messages"}
                 </Text>
               </View>
 
-              {/* Time */}
               <Text style={styles.time}>
                 {item.lastMessageAt ? formatTime(item.lastMessageAt) : ""}
               </Text>
@@ -134,7 +137,6 @@ export default function ChatList() {
   );
 }
 
-// ===== STYLES =====
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   title: { fontSize: 28, fontWeight: "700", marginBottom: 20 },

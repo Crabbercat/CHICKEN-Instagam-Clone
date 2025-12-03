@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import {
   FlatList,
@@ -22,6 +23,15 @@ import {
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { auth, db } from "../../lib/firebase";
+
+// Format giờ
+const formatTime = (ts: any) => {
+  if (!ts) return "";
+  const date = ts.toDate();
+  const hh = date.getHours().toString().padStart(2, "0");
+  const mm = date.getMinutes().toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+};
 
 export default function ChatDetail() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
@@ -46,7 +56,6 @@ export default function ChatDetail() {
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-      // auto scroll
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -63,13 +72,8 @@ export default function ChatDetail() {
 
       const participants = chatSnap.data().participants;
 
-      // ----- FIX CHÍNH: tìm user khác mình -----
       let otherUid = participants.find((u: string) => u !== currentUid);
-
-      // Trường hợp hiếm (chat 1 người tự tạo → chỉ có 1 UID trong chat)
-      if (!otherUid) {
-        otherUid = currentUid;
-      }
+      if (!otherUid) otherUid = currentUid;
 
       const userSnap = await getDoc(doc(db, "users", otherUid));
       if (userSnap.exists()) {
@@ -83,13 +87,21 @@ export default function ChatDetail() {
     loadPartner();
   }, [chatId]);
 
+  // Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
 
+    // 1) thêm message vào subcollection
     await addDoc(collection(db, "chats", chatId, "messages"), {
       text,
       senderId: currentUid,
       createdAt: serverTimestamp(),
+    });
+
+    // cập nhật lastMessage + lastMessageAt cho ChatList
+    await updateDoc(doc(db, "chats", chatId), {
+      lastMessage: text,
+      lastMessageAt: serverTimestamp(),
     });
 
     setText("");
@@ -133,8 +145,12 @@ export default function ChatDetail() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 12 }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const isMe = item.senderId === currentUid;
+
+            const nextMsg = messages[index + 1];
+            const isLastOfGroup =
+              !nextMsg || nextMsg.senderId !== item.senderId;
 
             return (
               <View
@@ -143,6 +159,7 @@ export default function ChatDetail() {
                   { alignItems: isMe ? "flex-end" : "flex-start" },
                 ]}
               >
+                {/* Bubble */}
                 <View
                   style={[styles.msgBubble, isMe ? styles.myMsg : styles.theirMsg]}
                 >
@@ -150,6 +167,20 @@ export default function ChatDetail() {
                     {item.text}
                   </Text>
                 </View>
+
+                {/* chỉ hiện khi là tin cuối nhóm */}
+                {isLastOfGroup && (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      marginTop: 3,
+                      color: "#777",
+                      alignSelf: "center",
+                    }}
+                  >
+                    {formatTime(item.createdAt)}
+                  </Text>
+                )}
               </View>
             );
           }}
